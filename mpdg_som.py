@@ -74,6 +74,21 @@ class SelfOrganizingMap:
         elif variable_names == None:
             self.variable_names = [f'var{i}' for i in range(self.data_dim)]
 
+    # def generate_normalization_matrix(self):
+
+    #     normalization_matrix = {}
+
+    #     for variable in self.variable_names:
+    #         normalization_matrix[variable] = {}
+
+
+
+    #     self.normalization_matrix = normalization_matrix
+
+    # def normalize_data(self):
+
+    #     self.normalization      
+
     def load_standard_deviations(self,
                                  stds):
 
@@ -111,7 +126,14 @@ class SelfOrganizingMap:
         SOM_space = self.mapsize.copy()
         SOM_space.append(self.data_dim)
 
-        self.SOM = np.zeros(SOM_space)
+        if self.initialization == 'random':
+            random_idx = np.random.rand(*self.mapsize) * self.data_len
+            random_idx = np.array(random_idx, dtype = int)
+            SOM = self.data[random_idx]
+
+        self.SOM = SOM
+
+    
 
     #next: build function to update weight vectors
 

@@ -24,15 +24,20 @@ def chi_sq_dist(weight_vector,
 def update_weight_vectors(weight_vectors,
                           learning_rate_function,
                           neighborhood_function,
-                          data_vector):
-    
-    updated_weight_vectors = 1
+                          data_vectors,
+                          index,
+                          step):
+
+    current_weight_vectors = weight_vectors.copy()
+    updated_weight_vectors = current_weight_vectors +\
+                             learning_rate_function(step) * neighborhood_function(step, index) *\
+                            (data_vectors - current_weight_vectors)
 
     return updated_weight_vectors
 
 class SOM_LearningRateFunctions:
 
-    def power_law(step,
+    def power_law_lrf(step,
                   maximum_steps, learning_rate):
         
         return learning_rate ** (step/maximum_steps)
