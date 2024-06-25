@@ -1,6 +1,8 @@
 import numpy as np
 from numpy import linalg as linalg
 
+from mpdg_som_utils import chi_sq_dist
+
 #assumptions: data is not covariant
 
 class SelfOrganizingMap:
@@ -9,11 +11,25 @@ class SelfOrganizingMap:
                  mapsize,
                  dimension: int = None,
                  name: str = 'som',
-                 initialization: str = 'random'
+                 initialization: str = 'random',
+                 learning_rate: float = 0.5,
+                 maximum_steps: int = 1000,
                  ):
         
         self.name = name
+        self.step = 0
+
+        if isinstance(maximum_steps, int) & (0 < maximum_steps):
+            self.maximum_steps = maximum_steps
+
+        else: raise(ValueError('The number of maximum steps must be a positive (non-zero) integer.'))
+
         self.use_covariance = False
+
+        if isinstance(learning_rate, float) & (0 < learning_rate < 1):
+            self.learning_rate = learning_rate
+        
+        else: raise(ValueError('The learning rate must be a float in the range (0, 1)'))
 
         if isinstance(mapsize, int) & (dimension != None):
             self.mapsize = [mapsize] * dimension
@@ -60,10 +76,6 @@ class SelfOrganizingMap:
 
     def load_standard_deviations(self,
                                  stds):
-        
-    #     if np.shape(variances) == np.shape(self.data):
-    #         self.covar_matrix = 
-    #     self.sigmas
 
         if len(np.shape(stds)) == 2:
             array_stds = np.array(stds)
@@ -101,20 +113,11 @@ class SelfOrganizingMap:
 
         self.SOM = np.zeros(SOM_space)
 
-    def chi_sq_dist(self,
-                    weight_vector,
-                    data_vector,
-                    covar_vector = None):
-        
-        if ~self.use_covariance:
-            covar_matrix = np.diagflat([1] * self.data_dim)
-        
-        elif (self.use_covariance) & (covar_vector == None):
-            raise(ValueError('There is no covariance matrix for the given data vector!'))
+    #next: build function to update weight vectors
 
-        covar_matrix = np.diagflat(covar_vector)
-        inv_covar_matrix = linalg.inv(covar_matrix)
-
-        vector_difference = data_vector - weight_vector
-
-        return np.dot(np.dot(vector_difference, inv_covar_matrix),vector_difference)
+    # chi_sq_dist(weight_vector,
+    #                 data_vector,
+    #                 covar_vector,
+    #                 self.use_covariance,
+    #                 self.data_dim)
+    
