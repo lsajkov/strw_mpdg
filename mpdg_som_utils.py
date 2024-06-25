@@ -21,8 +21,18 @@ def chi_sq_dist(weight_vector,
 
     return np.dot(np.dot(vector_difference, inv_covar_matrix),vector_difference)
 
-def update_weights(
+def update_weight_vectors(weight_vectors,
+                          learning_rate_function,
+                          neighborhood_function,
+                          data_vector):
+    
+    updated_weight_vectors = 1
+
+    return updated_weight_vectors
+
+class SOM_LearningRateFunctions:
+
+    def power_law(step,
+                  maximum_steps, learning_rate):
         
-                    ):
-    
-    
+        return learning_rate ** (step/maximum_steps)
