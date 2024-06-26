@@ -132,6 +132,7 @@ class SelfOrganizingMap:
             SOM = self.data[random_idx]
 
         self.SOM = SOM
+        self.
 
     
 
