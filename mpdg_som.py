@@ -2,6 +2,10 @@ import numpy as np
 from numpy import linalg as linalg
 
 from mpdg_som_utils import chi_sq_dist
+from mpdg_som_utils import training_step
+
+from mpdg_som_utils import SOM_LearningRateFunctions as lrf
+from mpdg_som_utils import SOM_NeighborhoodFunctions as nhb
 
 #assumptions: data is not covariant
 
@@ -120,6 +124,8 @@ class SelfOrganizingMap:
         for i in range(self.data_dim): print(f'{np.mean(self.data[:, i]):.3f}', end = '\t')
         print('\nmedian\t', end = '')
         for i in range(self.data_dim): print(f'{np.median(self.data[:, i]):.3f}', end = '\t')
+        print('\nstd\t', end = '')
+        for i in range(self.data_dim): print(f'{np.std(self.data[:, i]):.3f}', end = '\t')
 
     def build_SOM(self):
 
@@ -135,16 +141,23 @@ class SelfOrganizingMap:
 
     def train(self):
         
-        for loop_count in range(100):
+        weights = self.SOM.copy()
+        complete_data = self.data.copy()
+        complete_variance = self.variances.copy()
 
-            
+        for step_count in range(5):
+            for index in range(self.data_len):
+                weights = training_step(weights,
+                                        complete_data[index],
+                                        complete_variance[index],
+                                        step_count,
+                                        lrf.power_law_lrf,
+                                        (1000, 0.5),
+                                        nhb.gaussian_nbh,
+                                        (self.mapsize, 2)
+                                        )
         
+        self.SOM = weights
 
-    #next: build function to update weight vectors
-
-    # chi_sq_dist(weight_vector,
-    #                 data_vector,
-    #                 covar_vector,
-    #                 self.use_covariance,
-    #                 self.data_dim)
-    
+    #next: build error estimator
+    #after: build method for labelling pixels

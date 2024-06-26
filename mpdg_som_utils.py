@@ -66,9 +66,6 @@ def training_step(weight_vectors,
     neighborhood_mult = neighborhood_function(step, best_matching_unit_coords,
                                               *nbh_args)
     neighborhood_mult = np.stack([neighborhood_mult] * len(data_vector), axis = -1)
-    
-    print('learning rate mult: ', learning_rate_mult)
-    print('neighborhood_mult shape: ', np.shape(neighborhood_mult))
 
     data_vector_map = np.full(np.shape(current_weight_vectors),
                               data_vector)
