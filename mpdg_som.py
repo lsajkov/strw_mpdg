@@ -134,7 +134,10 @@ class SelfOrganizingMap:
         self.SOM = SOM
 
     def train(self):
-        pass
+        
+        for loop_count in range(100):
+
+            
         
 
     #next: build function to update weight vectors
