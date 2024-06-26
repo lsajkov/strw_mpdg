@@ -132,9 +132,10 @@ class SelfOrganizingMap:
             SOM = self.data[random_idx]
 
         self.SOM = SOM
-        self.
 
-    
+    def train(self):
+        pass
+        
 
     #next: build function to update weight vectors
 

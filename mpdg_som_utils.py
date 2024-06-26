@@ -6,8 +6,8 @@ def chi_sq_dist(weight_vector,
                 data_vector,
                 covar_vector = None,
                 use_covariance = False,
-                data_dim = None,):
-    
+                data_dim = None):
+
     if (~use_covariance) & (data_dim is not None):
         covar_matrix = np.diagflat([1] * data_dim)
 
@@ -26,46 +26,56 @@ def chi_sq_dist(weight_vector,
 
     return np.dot(np.dot(vector_difference, inv_covar_matrix),vector_difference)
 
-def update_weight_vectors(weight_vectors,
-                          learning_rate_function,
-                          neighborhood_function,
-                          data_vectors,
-                          index,
-                          step):
-
-    current_weight_vectors = weight_vectors.copy()
-    updated_weight_vectors = current_weight_vectors +\
-                             learning_rate_function(step) * neighborhood_function(step, index) *\
-                            (data_vectors - current_weight_vectors)
-
-    return updated_weight_vectors
-
-# def distance_calculator(mapsize,
-#                         weight_vectors,
-#                         data_vector,
-#                         distance_metric,
-#                         *args):
-
-#     distance_map = np.full(mapsize, np.nan)
-#     iteration_map = np.nditer(distance_map, flags = ['multi_index'])
+def find_bmu_coords(weight_vectors,
+                    data_vector,
+                    covar_vector):
     
-#     for _ in iteration_map:
-#         distance = distance_metric(weight_vectors[*iteration_map.multi_index],
-#                                    data_vector,
-#                                    *args)
-#         distance_map[*iteration_map.multi_index] = distance
+    distance_map = np.full(np.shape(weight_vectors)[:-1], np.nan)
+    iteration_map = np.nditer(distance_map, flags = ['multi_index'])
 
-def find_closest_vector()
+    for _ in iteration_map:
+        distance = chi_sq_dist(weight_vectors[*iteration_map.multi_index],
+                               data_vector,
+                               covar_vector,
+                               use_covariance = True)
+        distance_map[*iteration_map.multi_index] = distance
+
+    argmin_idx = np.argmin(distance_map)
+    return np.unravel_index(argmin_idx, np.shape(weight_vectors)[:-1])
+
 
 def training_step(weight_vectors,
+                  data_vector,
+                  covar_vector,
+                  step,
+                  learning_rate_function,
+                  lrf_args,
+                  neighborhood_function,
+                  nbh_args
                   ):
 
     current_weight_vectors = weight_vectors.copy()
 
-    #
-    #
+    best_matching_unit_coords = find_bmu_coords(current_weight_vectors,
+                                                data_vector,
+                                                covar_vector)
 
-    updated_weight_vectors = update_weight_vectors()
+    learning_rate_mult = learning_rate_function(step,
+                                                *lrf_args)
+
+    neighborhood_mult = neighborhood_function(step, best_matching_unit_coords,
+                                              *nbh_args)
+    neighborhood_mult = np.stack([neighborhood_mult] * len(data_vector), axis = -1)
+    
+    print('learning rate mult: ', learning_rate_mult)
+    print('neighborhood_mult shape: ', np.shape(neighborhood_mult))
+
+    data_vector_map = np.full(np.shape(current_weight_vectors),
+                              data_vector)
+
+    updated_weight_vectors = current_weight_vectors +\
+                             learning_rate_mult * neighborhood_mult *\
+                            (data_vector_map - current_weight_vectors)
     
     return updated_weight_vectors
 
