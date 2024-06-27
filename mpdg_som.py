@@ -21,6 +21,7 @@ class SelfOrganizingMap:
                  ):
         
         self.name = name
+        self.map_dimensionality = len(mapsize)
         self.step = 0
 
         if isinstance(maximum_steps, int) & (0 < maximum_steps):
@@ -132,17 +133,30 @@ class SelfOrganizingMap:
         SOM_space = self.mapsize.copy()
         SOM_space.append(self.data_dim)
 
-        weights_map = np.full(SOM_space, np.nan)
-
         if self.initialization == 'random':
             random_idx = np.random.rand(*self.mapsize) * self.data_len
             random_idx = np.array(random_idx, dtype = int)
             weights_map = self.data[random_idx]
 
         if self.initialization == 'pca':
-            raise(NotImplementedError())
-        
+            pca_covar_matrix = np.cov(self.data, rowvar = False)
+            pca_eigvals, pca_eigvecs = np.linalg.eig(pca_covar_matrix)
+            
+            pca_indices = pca_eigvals.argsort()[-self.map_dimensionality:]
+            pca_vectors = pca_eigvecs[pca_indices]
 
+            principal_components = np.array([np.dot(self.data, pca_vector)\
+                                             for pca_vector in pca_vectors])
+            
+            weights_map = np.full(SOM_space, np.nan)
+            
+            pca_map = np.meshgrid(*[np.linspace(np.min(principal_components[ii]),
+                                                np.max(principal_components[ii]),
+                                                self.mapsize[ii]) for ii in range(self.map_dimensionality)])
+
+            for ii in range(self.data_dim):
+                weights_map[..., ii] = np.sum([pca_map[jj] * pca_vectors[:, ii][jj]\
+                                               for jj in range(self.map_dimensionality)], axis = 0)
 
         self.weights_map = weights_map
 
