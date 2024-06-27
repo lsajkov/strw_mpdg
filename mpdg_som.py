@@ -79,6 +79,8 @@ class SelfOrganizingMap:
         elif variable_names == None:
             self.variable_names = [f'var{i}' for i in range(self.data_dim)]
 
+        self.bmu_indices = np.full([self.data_len, self.map_dimensionality], np.nan)
+
     # def generate_normalization_matrix(self):
 
     #     normalization_matrix = {}
@@ -161,6 +163,7 @@ class SelfOrganizingMap:
         self.weights_map = weights_map
 
     def train(self,
+              nans_in_empty_cells = False,
               debug_max_steps = 1):
         
         weights = self.weights_map.copy()
@@ -169,17 +172,21 @@ class SelfOrganizingMap:
 
         for step_count in range(debug_max_steps):
             for index in range(self.data_len):
-                weights = training_step(weights,
-                                        complete_data[index],
-                                        complete_variance[index],
-                                        step_count,
-                                        lrf.power_law_lrf,
-                                        (1000, 0.5),
-                                        nhb.gaussian_nbh,
-                                        (self.mapsize, 2)
-                                        )
+                weights, bmu_coords = training_step(weights,
+                                                    complete_data[index],
+                                                    complete_variance[index],
+                                                    step_count,
+                                                    lrf.power_law_lrf,
+                                                    (1000, 0.5),
+                                                    nhb.gaussian_nbh,
+                                                    (self.mapsize, 2, 1000)
+                                                    )
+                self.bmu_indices[index] = (bmu_coords)
             self.step += 1
         
+        if nans_in_empty_cells:
+            pass
+
         self.weights_map = weights
 
     #next: build error estimator

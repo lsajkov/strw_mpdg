@@ -41,7 +41,7 @@ def find_bmu_coords(weight_vectors,
         distance_map[*iteration_map.multi_index] = distance
 
     argmin_idx = np.argmin(distance_map)
-    return np.unravel_index(argmin_idx, np.shape(weight_vectors)[:-1])
+    return argmin_idx, np.unravel_index(argmin_idx, np.shape(weight_vectors)[:-1])
 
 
 def training_step(weight_vectors,
@@ -56,14 +56,14 @@ def training_step(weight_vectors,
 
     current_weight_vectors = weight_vectors.copy()
 
-    best_matching_unit_coords = find_bmu_coords(current_weight_vectors,
-                                                data_vector,
-                                                covar_vector)
+    bmu_index, bmu_coords = find_bmu_coords(current_weight_vectors,
+                                            data_vector,
+                                            covar_vector)
 
     learning_rate_mult = learning_rate_function(step,
                                                 *lrf_args)
 
-    neighborhood_mult = neighborhood_function(step, best_matching_unit_coords,
+    neighborhood_mult = neighborhood_function(step, bmu_coords,
                                               *nbh_args)
     neighborhood_mult = np.stack([neighborhood_mult] * len(data_vector), axis = -1)
 
@@ -74,7 +74,7 @@ def training_step(weight_vectors,
                              learning_rate_mult * neighborhood_mult *\
                             (data_vector_map - current_weight_vectors)
     
-    return updated_weight_vectors
+    return updated_weight_vectors, bmu_index
 
 class SOM_LearningRateFunctions:
 
@@ -88,7 +88,8 @@ class SOM_NeighborhoodFunctions:
     def gaussian_nbh(step,
                      mean_coordinates,
                      mapsize,
-                     kernel_spread):
+                     init_kernel_spread,
+                     maximum_steps):
         
         euclidean_distance_map = np.full(mapsize, np.nan)
         iteration_map = np.nditer(euclidean_distance_map, flags = ['multi_index'])
@@ -98,4 +99,11 @@ class SOM_NeighborhoodFunctions:
                                                 np.array(iteration_map.multi_index))
             euclidean_distance_map[*iteration_map.multi_index] = euclidean_distance
 
+        kernel_spread = init_kernel_spread ** (1 - (step/maximum_steps))
+
         return np.exp(-(euclidean_distance_map**2)/(kernel_spread**2))
+    
+class SOM_ErrorEstimators:
+
+    def quantization_error(step):
+        raise(NotImplementedError())
