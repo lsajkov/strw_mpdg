@@ -6,6 +6,7 @@ from mpdg_som_utils import training_step
 
 from mpdg_som_utils import SOM_LearningRateFunctions as lrf
 from mpdg_som_utils import SOM_NeighborhoodFunctions as nhb
+from mpdg_som_utils import SOM_ErrorEstimators as e_est
 
 #assumptions: data is not covariant
 
@@ -79,7 +80,7 @@ class SelfOrganizingMap:
         elif variable_names == None:
             self.variable_names = [f'var{i}' for i in range(self.data_dim)]
 
-        self.bmu_indices = np.full([self.data_len, self.map_dimensionality], np.nan)
+        self.bmu_indices = np.full([self.data_len, self.map_dimensionality], 0, dtype = int)
 
     # def generate_normalization_matrix(self):
 
@@ -164,30 +165,51 @@ class SelfOrganizingMap:
 
     def train(self,
               nans_in_empty_cells = False,
+              error_func = None,
+              error_thresh = None,
               debug_max_steps = 1):
         
         weights = self.weights_map.copy()
         complete_data = self.data.copy()
         complete_variance = self.variances.copy()
 
-        for step_count in range(debug_max_steps):
+        error = 99
+        while error > error_thresh:
             for index in range(self.data_len):
                 weights, bmu_coords = training_step(weights,
                                                     complete_data[index],
                                                     complete_variance[index],
-                                                    step_count,
+                                                    self.step,
                                                     lrf.power_law_lrf,
                                                     (1000, 0.5),
                                                     nhb.gaussian_nbh,
                                                     (self.mapsize, 2, 1000)
                                                     )
                 self.bmu_indices[index] = (bmu_coords)
+            
+            error = e_est.max_misalignment(weights,
+                                           complete_data,
+                                           self.bmu_indices)
+            print(f'Step {self.step} complete. Error: {error:.3f}')
+            self.weights_map = weights
             self.step += 1
         
-        if nans_in_empty_cells:
-            pass
+        print(f'SOM converged at step {self.step} to error {error}')
 
-        self.weights_map = weights
+        # for step_count in range(debug_max_steps):
+        #     for index in range(self.data_len):
+        #         weights, bmu_coords = training_step(weights,
+        #                                             complete_data[index],
+        #                                             complete_variance[index],
+        #                                             step_count,
+        #                                             lrf.power_law_lrf,
+        #                                             (1000, 0.5),
+        #                                             nhb.gaussian_nbh,
+        #                                             (self.mapsize, 2, 1000)
+        #                                             )
+        #         self.bmu_indices[index] = (bmu_coords)
+        #     self.step += 1
+
 
     #next: build error estimator
     #after: build method for labelling pixels

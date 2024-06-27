@@ -41,7 +41,7 @@ def find_bmu_coords(weight_vectors,
         distance_map[*iteration_map.multi_index] = distance
 
     argmin_idx = np.argmin(distance_map)
-    return argmin_idx, np.unravel_index(argmin_idx, np.shape(weight_vectors)[:-1])
+    return np.unravel_index(argmin_idx, np.shape(weight_vectors)[:-1])
 
 
 def training_step(weight_vectors,
@@ -56,9 +56,9 @@ def training_step(weight_vectors,
 
     current_weight_vectors = weight_vectors.copy()
 
-    bmu_index, bmu_coords = find_bmu_coords(current_weight_vectors,
-                                            data_vector,
-                                            covar_vector)
+    bmu_coords = find_bmu_coords(current_weight_vectors,
+                                 data_vector,
+                                 covar_vector)
 
     learning_rate_mult = learning_rate_function(step,
                                                 *lrf_args)
@@ -74,7 +74,7 @@ def training_step(weight_vectors,
                              learning_rate_mult * neighborhood_mult *\
                             (data_vector_map - current_weight_vectors)
     
-    return updated_weight_vectors, bmu_index
+    return updated_weight_vectors, bmu_coords
 
 class SOM_LearningRateFunctions:
 
@@ -104,6 +104,18 @@ class SOM_NeighborhoodFunctions:
         return np.exp(-(euclidean_distance_map**2)/(kernel_spread**2))
     
 class SOM_ErrorEstimators:
+
+    def max_misalignment(weight_vectors,
+                         data,
+                         bmu_indices):
+
+        max_misalign = 0
+        for index in range(len(data)):
+            bmu_index = bmu_indices[index]
+            misalign = np.dot(data[index], weight_vectors[*bmu_index, :])
+            if misalign > max_misalign: max_misalign = misalign
+        
+        return max_misalign
 
     def quantization_error(step):
         raise(NotImplementedError())
