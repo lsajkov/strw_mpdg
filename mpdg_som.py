@@ -132,20 +132,28 @@ class SelfOrganizingMap:
         SOM_space = self.mapsize.copy()
         SOM_space.append(self.data_dim)
 
+        weights_map = np.full(SOM_space, np.nan)
+
         if self.initialization == 'random':
             random_idx = np.random.rand(*self.mapsize) * self.data_len
             random_idx = np.array(random_idx, dtype = int)
-            SOM = self.data[random_idx]
+            weights_map = self.data[random_idx]
 
-        self.SOM = SOM
-
-    def train(self):
+        if self.initialization == 'pca':
+            raise(NotImplementedError())
         
-        weights = self.SOM.copy()
+
+
+        self.weights_map = weights_map
+
+    def train(self,
+              debug_max_steps = 1):
+        
+        weights = self.weights_map.copy()
         complete_data = self.data.copy()
         complete_variance = self.variances.copy()
 
-        for step_count in range(5):
+        for step_count in range(debug_max_steps):
             for index in range(self.data_len):
                 weights = training_step(weights,
                                         complete_data[index],
@@ -156,8 +164,9 @@ class SelfOrganizingMap:
                                         nhb.gaussian_nbh,
                                         (self.mapsize, 2)
                                         )
+            self.step += 1
         
-        self.SOM = weights
+        self.weights_map = weights
 
     #next: build error estimator
     #after: build method for labelling pixels
