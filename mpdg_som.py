@@ -21,17 +21,45 @@ from mpdg_som_utils import SOM_ErrorEstimators as e_est
 class SelfOrganizingMap:
 
     def __init__(self,
-                 mapsize,
+                 name: str = '',
+                 mapsize = None,
                  dimension: int = None,
-                 name: str = 'som',
-                 initialization: str = 'random',
+                 initialization: str = '',
+                 termination: str = '',
+                 learning_rate_function: str = '',
+                 neighborhood_function: str = '',
+                 error_estimator: str = '',
                  learning_rate: float = 0.5,
-                 maximum_steps: int = 1000,
+                 maximum_steps: int = 100,
+                 error_thresh: float = 1
                  ):
         
         self.name = name
-        self.map_dimensionality = len(mapsize)
+
+        if isinstance(mapsize, int):
+            self.map_dimensionality = dimension
+
+        elif isinstance(mapsize, list):
+            self.map_dimensionality = len(mapsize)
+        
+        else: raise(TypeError('Please pass the mapsize as a list or an integer/dimension pair.'))
+
         self.step = 0
+
+        if initialization == '':
+            raise(TypeError('Please pass an initalization type with initializaton = "type". Types can be: "random", "pca".'))
+
+        if termination == '':
+            raise(TypeError('Please pass a termination type with termination = "type". Types can be: "error_thresh", "maximum_steps".'))
+
+        if learning_rate_function == '':
+            raise(TypeError('Please pass a learning rate function with learning_rate_function = "type". Types can be: "power_law".'))
+
+        if neighborhood_function == '':
+            raise(TypeError('Please pass a neighborhood function with neighborhood_function = "type". Types can be: "gaussian".'))
+
+        if (termination == 'error_thresh') & (error_estimator == ''):
+            raise(TypeError('Please pass an error estimator with error_estimator = "type". Types can be: "mean_misalignment", "maximum_misalignment".'))
 
         if isinstance(maximum_steps, int) & (0 < maximum_steps):
             self.maximum_steps = maximum_steps
