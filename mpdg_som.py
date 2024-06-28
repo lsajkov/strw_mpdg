@@ -1,7 +1,7 @@
 import numpy as np
 from numpy import linalg as linalg
 
-from mpdg_som_utils import chi_sq_dist
+from mpdg_som_utils import find_bmu_coords
 from mpdg_som_utils import training_step
 
 import matplotlib.pyplot as plt
@@ -311,10 +311,36 @@ class SelfOrganizingMap:
     def predict(self,
                 prediction_input):
         
-        raise(NotImplementedError)
-                
+        if len(np.shape(prediction_input)) == 2:
+            self.prediction_input = np.array(prediction_input)
+
+        elif (len(np.shape(prediction_input)) == 1) & (len(prediction_input) > 1):
+
+            tuple_input = prediction_input.as_array()
+            list_input = [list(values) for values in tuple_input]
+            self.prediction_input = np.array(list_input)
+        
+        else: raise(TypeError('Please pass the data as a 2-d array. Each object should be an n-dimensional vector. All objects should have the same dimension.'))
+
+        if np.shape(self.prediction_input)[1] != self.data_dim:
+            raise(AssertionError('The dimension of the prediction data does not match the dimension of the data used to train the SOM.'))
+
+        prediction_input_len = np.shape(self.prediction_input)[0]
+        unitary_covar_vector = [1] * prediction_input_len
+
+        prediction_results = np.full([prediction_input_len, self.params_dim], np.nan)
+
+        for index in range(prediction_input_len):
+
+            bmu_coords = find_bmu_coords(self.weights_map,
+                                         self.prediction_input[index],
+                                         unitary_covar_vector)
+            prediction_results[index] = self.map_labels[*bmu_coords]
+        
+        self.prediction_results = prediction_results
+        return prediction_results
+
     def prediction_statistics(self,
                               return_values = False):
         
-                        
         raise(NotImplementedError)
