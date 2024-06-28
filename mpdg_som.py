@@ -31,66 +31,56 @@ class SelfOrganizingMap:
                  error_estimator: str = '',
                  learning_rate: float = 0.5,
                  maximum_steps: int = 100,
-                 error_thresh: float = 1
+                 error_thresh: float = None
                  ):
         
         self.name = name
 
-        if isinstance(mapsize, int):
-            self.map_dimensionality = dimension
-
+        if isinstance(mapsize, int) & (dimension != None):
+            self.mapsize = [mapsize] * dimension
+        elif isinstance(mapsize, int) & (dimension == None):
+            raise(ValueError('Must also pass the number of dimensions of the map as an integer.'))
         elif isinstance(mapsize, list):
-            self.map_dimensionality = len(mapsize)
-        
-        else: raise(TypeError('Please pass the mapsize as a list or an integer/dimension pair.'))
+            self.mapsize = mapsize
+        elif isinstance(mapsize, tuple):
+            self.mapsize = [mapsize[i] for i in range(len(mapsize))]
+        else: raise(ValueError('Mapsize must be an integer or a pair of numbers in list or tuple.'))
+                    
+        if initialization in ['random', 'pca']:
+            self.initialization = initialization
+        else: raise(TypeError('Please pass an initalization type with initializaton = "type". Types can be: "random", "pca".'))
 
-        self.step = 0
+        if termination in ['error_thresh', 'maximum_steps']:
+            self.termination = termination
+        else: raise(TypeError('Please pass a termination type with termination = "type". Types can be: "error_thresh", "maximum_steps".'))
 
-        if initialization == '':
-            raise(TypeError('Please pass an initalization type with initializaton = "type". Types can be: "random", "pca".'))
+        if learning_rate_function in ['power_law']:
+            self.learning_rate_function = learning_rate_function
+        else: raise(TypeError('Please pass a learning rate function with learning_rate_function = "type". Types can be: "power_law".'))
 
-        if termination == '':
-            raise(TypeError('Please pass a termination type with termination = "type". Types can be: "error_thresh", "maximum_steps".'))
+        if neighborhood_function in ['gaussian']:
+            self.neighborhood_function = neighborhood_function
+        else: raise(TypeError('Please pass a neighborhood function with neighborhood_function = "type". Types can be: "gaussian".'))
 
-        if learning_rate_function == '':
-            raise(TypeError('Please pass a learning rate function with learning_rate_function = "type". Types can be: "power_law".'))
-
-        if neighborhood_function == '':
-            raise(TypeError('Please pass a neighborhood function with neighborhood_function = "type". Types can be: "gaussian".'))
-
-        if (termination == 'error_thresh') & (error_estimator == ''):
-            raise(TypeError('Please pass an error estimator with error_estimator = "type". Types can be: "mean_misalignment", "maximum_misalignment".'))
-
-        if isinstance(maximum_steps, int) & (0 < maximum_steps):
-            self.maximum_steps = maximum_steps
-
-        else: raise(ValueError('The number of maximum steps must be a positive (non-zero) integer.'))
-
-        self.use_covariance = False
+        if (termination == 'error_thresh') & (error_estimator in ['mean_misalignment', 'maximum_misalignment']):
+            self.error_estimator = error_estimator
+        else: raise(TypeError('Please pass an error estimator with error_estimator = "type". Types can be: "mean_misalignment", "maximum_misalignment".'))
 
         if isinstance(learning_rate, float) & (0 < learning_rate < 1):
             self.learning_rate = learning_rate
-        
         else: raise(ValueError('The learning rate must be a float in the range (0, 1)'))
 
-        if isinstance(mapsize, int) & (dimension != None):
-            self.mapsize = [mapsize] * dimension
+        if isinstance(maximum_steps, int) & (maximum_steps > 0):
+            self.maximum_steps = maximum_steps
+        else: raise(ValueError('The number of maximum steps must be a positive (non-zero) integer.'))
 
-        elif isinstance(mapsize, int) & (dimension == None):
-            raise(ValueError('Must also pass the number of dimensions of the map as an integer.'))
-
-        elif isinstance(mapsize, list):
-            self.mapsize = mapsize
+        if (termination == 'error_thresh') & (error_thresh != None):
+            self.error_thresh = error_thresh
+        elif termination == 'error_thresh':
+            raise(ValueError('Please pass an error threshold to use error_thresh as a terminator.'))
         
-        elif isinstance(mapsize, tuple):
-            self.mapsize = [mapsize[i] for i in range(len(mapsize))]
+        self.use_covariance = False
 
-        else: raise(ValueError('Mapsize must be an integer or a pair of numbers in list or tuple.'))
-
-        if initialization in ['random', 'pca']:
-            self.initialization = initialization
-        
-        else: raise(ValueError("Initialization type must be 'random' or 'pca'."))
 
     def load_data(self,
                   data,
@@ -201,6 +191,7 @@ class SelfOrganizingMap:
                                                for jj in range(self.map_dimensionality)], axis = 0)
 
         self.weights_map = weights_map
+        self.step = 0
 
     def train(self,
               nans_in_empty_cells = False,
