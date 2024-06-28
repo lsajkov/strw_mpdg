@@ -30,7 +30,7 @@ class SelfOrganizingMap:
                  neighborhood_function: str = '',
                  error_estimator: str = '',
                  learning_rate: float = 0.5,
-                 maximum_steps: int = 100,
+                 maximum_steps: int = None,
                  error_thresh: float = None
                  ):
         
@@ -45,6 +45,8 @@ class SelfOrganizingMap:
         elif isinstance(mapsize, tuple):
             self.mapsize = [mapsize[i] for i in range(len(mapsize))]
         else: raise(ValueError('Mapsize must be an integer or a pair of numbers in list or tuple.'))
+
+        self.map_dimensionality = len(mapsize)
                     
         if initialization in ['random', 'pca']:
             self.initialization = initialization
@@ -64,16 +66,19 @@ class SelfOrganizingMap:
 
         if (termination == 'error_thresh') & (error_estimator in ['mean_misalignment', 'maximum_misalignment']):
             self.error_estimator = error_estimator
-        else: raise(TypeError('Please pass an error estimator with error_estimator = "type". Types can be: "mean_misalignment", "maximum_misalignment".'))
+        elif termination == 'error_thresh':
+            raise(TypeError('Please pass an error estimator with error_estimator = "type". Types can be: "mean_misalignment", "maximum_misalignment".'))
 
         if isinstance(learning_rate, float) & (0 < learning_rate < 1):
             self.learning_rate = learning_rate
         else: raise(ValueError('The learning rate must be a float in the range (0, 1)'))
 
-        if isinstance(maximum_steps, int) & (maximum_steps > 0):
+        if termination != 'maximum_steps': maximum_steps == np.inf
+        if (termination == 'maximum_steps') & (maximum_steps > 0) & isinstance(maximum_steps, int):
             self.maximum_steps = maximum_steps
         else: raise(ValueError('The number of maximum steps must be a positive (non-zero) integer.'))
 
+        if termination != 'error_thresh': self.error_thresh = 0
         if (termination == 'error_thresh') & (error_thresh != None):
             self.error_thresh = error_thresh
         elif termination == 'error_thresh':
@@ -203,8 +208,8 @@ class SelfOrganizingMap:
         complete_data = self.data.copy()
         complete_variance = self.variances.copy()
 
-        error = 99
-        while self.step < self.maximum_steps:
+        continue_training = True
+        while continue_training: 
             for index in range(self.data_len):
                 weights, bmu_coords = training_step(weights,
                                                     complete_data[index],
@@ -217,13 +222,20 @@ class SelfOrganizingMap:
                                                     )
                 self.bmu_indices[index] = (bmu_coords)
             
+            self.weights_map = weights
+            self.step += 1
             error = e_est.max_misalignment(weights,
                                            complete_data,
                                            self.bmu_indices)
+            
+            if self.step >= self.maximum_steps:
+                if self.termination == 'maximum_steps': continue_training = False
+            
+            if error <= self.error_thresh:
+                if self.termination == 'error_thresh': continue_training = False
+            
             print(f'Step {self.step} complete. Error: {error:.3f}')
-            self.weights_map = weights
-            self.step += 1
-        
+
         print(f'SOM converged at step {self.step} to error {error}')
 
         # for step_count in range(debug_max_steps):
@@ -298,8 +310,8 @@ class SelfOrganizingMap:
 
         if show_labeled:
 
-            variables_dim = np.shape(self.variable_names)[1]
-            fig = plt.figure(figsize = (self.variables_dim * 5, 10), constrained_layout = True)
+            variables_dim = len(self.variable_names)
+            fig = plt.figure(figsize = (variables_dim * 5, 10), constrained_layout = True)
             
             for i, name in enumerate(self.parameter_names):
                 ax = fig.add_subplot(1, variables_dim, i + 1)
@@ -319,23 +331,26 @@ class SelfOrganizingMap:
             tuple_input = prediction_input.as_array()
             list_input = [list(values) for values in tuple_input]
             self.prediction_input = np.array(list_input)
-        
+            
         else: raise(TypeError('Please pass the data as a 2-d array. Each object should be an n-dimensional vector. All objects should have the same dimension.'))
 
-        if np.shape(self.prediction_input)[1] != self.data_dim:
+        prediction_input_len, prediction_input_dim = np.shape(self.prediction_input)
+        
+        if prediction_input_dim != self.data_dim:
             raise(AssertionError('The dimension of the prediction data does not match the dimension of the data used to train the SOM.'))
 
-        prediction_input_len = np.shape(self.prediction_input)[0]
-        unitary_covar_vector = [1] * prediction_input_len
+        unitary_covar_vector = [1] * prediction_input_dim
 
         prediction_results = np.full([prediction_input_len, self.params_dim], np.nan)
 
         for index in range(prediction_input_len):
 
+            print(self.prediction_input[index])
             bmu_coords = find_bmu_coords(self.weights_map,
                                          self.prediction_input[index],
                                          unitary_covar_vector)
-            prediction_results[index] = self.map_labels[*bmu_coords]
+            print(bmu_coords)
+            prediction_results[index] = self.map_labels[bmu_coords]
         
         self.prediction_results = prediction_results
         return prediction_results
