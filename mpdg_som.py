@@ -24,13 +24,13 @@ class SelfOrganizingMap:
                  name: str = '',
                  mapsize = None,
                  dimension: int = None,
-                 initialization: str = '',
-                 termination: str = '',
-                 learning_rate_function: str = '',
-                 neighborhood_function: str = '',
-                 error_estimator: str = '',
+                 initialization: str = 'pca',
+                 termination: str = 'maximum_steps',
+                 learning_rate_function: str = 'power_law',
+                 neighborhood_function: str = 'gaussian',
+                 error_estimator: str = 'maximum_misalignment',
                  learning_rate: float = 0.5,
-                 maximum_steps: int = None,
+                 maximum_steps: int = 100,
                  error_thresh: float = None
                  ):
         
@@ -111,6 +111,8 @@ class SelfOrganizingMap:
         elif variable_names == None:
             self.variable_names = [f'var{i}' for i in range(self.data_dim)]
 
+        self.initial_data_indices = np.arange(0, self.data_len, 1)
+        self.randomized_data_indices = np.arange(0, self.data_len, 1)
         self.bmu_indices = np.full([self.data_len, self.map_dimensionality], 0, dtype = int)
 
     # def generate_normalization_matrix(self):
@@ -208,9 +210,14 @@ class SelfOrganizingMap:
         complete_data = self.data.copy()
         complete_variance = self.variances.copy()
 
+        self.randomized_data_indices = np.arange(0, self.data_len)
+        
         continue_training = True
         while continue_training: 
-            for index in range(self.data_len):
+
+            np.random.shuffle(self.randomized_data_indices)
+            
+            for index in self.randomized_data_indices:
                 weights, bmu_coords = training_step(weights,
                                                     complete_data[index],
                                                     complete_variance[index],

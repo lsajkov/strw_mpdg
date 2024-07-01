@@ -45,7 +45,18 @@ def find_bmu_coords(weight_vectors,
 
 
 def training_step(weight_vectors,
-                  data_vector,np.shape(self.prediction_input)[1]
+                  data_vector,
+                  covar_vector,
+                  step,
+                  learning_rate_function,
+                  lrf_args,
+                  neighborhood_function,
+                  nbh_args
+                  ):
+    
+    current_weight_vectors = weight_vectors.copy()
+
+    bmu_coords = find_bmu_coords(current_weight_vectors,
                                  data_vector,
                                  covar_vector)
 
