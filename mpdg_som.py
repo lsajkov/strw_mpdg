@@ -15,6 +15,7 @@ plt.rcParams.update({
 from mpdg_som_utils import SOM_LearningRateFunctions as lrf
 from mpdg_som_utils import SOM_NeighborhoodFunctions as nhb
 from mpdg_som_utils import SOM_ErrorEstimators as e_est
+from mpdg_som_utils import SOM_Normalizers as som_norm
 
 #assumptions: data is not covariant
 
@@ -29,7 +30,9 @@ class SelfOrganizingMap:
                  learning_rate_function: str = 'power_law',
                  neighborhood_function: str = 'gaussian',
                  error_estimator: str = 'maximum_misalignment',
+                 normalization: str = 'unit_range',
                  learning_rate: float = 0.5,
+                 kernel_spread: float = 1.,
                  maximum_steps: int = 100,
                  error_thresh: float = None
                  ):
@@ -64,7 +67,7 @@ class SelfOrganizingMap:
             self.neighborhood_function = neighborhood_function
         else: raise(TypeError('Please pass a neighborhood function with neighborhood_function = "type". Types can be: "gaussian".'))
 
-        if (termination == 'error_thresh') & (error_estimator in ['mean_misalignment', 'maximum_misalignment']):
+        if (termination == 'error_thresh') & (error_estimator in ['quantization_error', 'maximum_misalignment']):
             self.error_estimator = error_estimator
         elif termination == 'error_thresh':
             raise(TypeError('Please pass an error estimator with error_estimator = "type". Types can be: "mean_misalignment", "maximum_misalignment".'))
@@ -73,17 +76,19 @@ class SelfOrganizingMap:
             self.learning_rate = learning_rate
         else: raise(ValueError('The learning rate must be a float in the range (0, 1)'))
 
-        if termination != 'maximum_steps': maximum_steps == np.inf
-        if (termination == 'maximum_steps') & (maximum_steps > 0) & isinstance(maximum_steps, int):
+        if termination != 'maximum_steps': self.maximum_steps = maximum_steps
+        elif (termination == 'maximum_steps') & (maximum_steps > 0) & isinstance(maximum_steps, int):
             self.maximum_steps = maximum_steps
         else: raise(ValueError('The number of maximum steps must be a positive (non-zero) integer.'))
 
         if termination != 'error_thresh': self.error_thresh = 0
-        if (termination == 'error_thresh') & (error_thresh != None):
+        elif (termination == 'error_thresh') & (error_thresh != None):
             self.error_thresh = error_thresh
-        elif termination == 'error_thresh':
+        elif (termination == 'error_thresh') & (error_thresh == None):
             raise(ValueError('Please pass an error threshold to use error_thresh as a terminator.'))
         
+        self.kernel_spread = kernel_spread
+        self.normalization = normalization
         self.use_covariance = False
 
 
@@ -115,20 +120,19 @@ class SelfOrganizingMap:
         self.randomized_data_indices = np.arange(0, self.data_len, 1)
         self.bmu_indices = np.full([self.data_len, self.map_dimensionality], 0, dtype = int)
 
-    # def generate_normalization_matrix(self):
+    def normalize_data(self):
 
-    #     normalization_matrix = {}
-
-    #     for variable in self.variable_names:
-    #         normalization_matrix[variable] = {}
-
-
-
-    #     self.normalization_matrix = normalization_matrix
-
-    # def normalize_data(self):
-
-    #     self.normalization      
+        if self.normalization in ['zero_mean_unit_variance', 'zmuv']:
+            normalizer = som_norm.ZeroMean_UnitVariance(self.variable_names)
+        
+        if self.normalization in ['unit_range', 'ur']:
+            normalizer = som_norm.UnitRange(self.variable_names)
+            
+        original_data = self.data.copy()
+        normalized_data = normalizer.normalize(original_data)
+        self.data = normalized_data
+        self.normalization_params = normalizer.normalization_params
+            
 
     def load_standard_deviations(self,
                                  stds):
@@ -147,6 +151,22 @@ class SelfOrganizingMap:
         else: raise(TypeError('Please pass the data as a 2-d array. Each object should be an n-dimensional vector. All objects should have the same dimension.'))
 
         self.use_covariance = True
+
+    def normalize_standard_deviations(self):
+
+        original_stds = np.sqrt(self.variances.copy())
+        normalized_stds = original_stds.copy()
+        if self.normalization in ['zero_mean_unit_variance', 'zmuv']:
+            for i, variable in enumerate(self.variable_names):
+                normalized_stds[:, i] -= self.normalization_params[variable]['mean']
+                normalized_stds[:, i] /= self.normalization_params[variable]['std']
+
+        if self.normalization in ['unit_range', 'ur']:
+            for i, variable in enumerate(self.variable_names):
+                normalized_stds[:, i] -= self.normalization_params[variable]['min']
+                normalized_stds[:, i] /= self.normalization_params[variable]['max'] - self.normalization_params[variable]['min']
+
+        self.variances = normalized_stds**2
 
     def data_statistics(self):
 
@@ -178,13 +198,18 @@ class SelfOrganizingMap:
             weights_map = self.data[random_idx]
 
         if self.initialization == 'pca':
-            pca_covar_matrix = np.cov(self.data, rowvar = False)
+            pca_data = self.data.copy()
+            randomized_idx = np.arange(0, self.data_len, 1)
+            np.random.shuffle(randomized_idx)
+            pca_data = pca_data[randomized_idx]
+
+            pca_covar_matrix = np.cov(pca_data, rowvar = False)
             pca_eigvals, pca_eigvecs = np.linalg.eig(pca_covar_matrix)
             
             pca_indices = pca_eigvals.argsort()[-self.map_dimensionality:]
             pca_vectors = pca_eigvecs[pca_indices]
 
-            principal_components = np.array([np.dot(self.data, pca_vector)\
+            principal_components = np.array([np.dot(pca_data, pca_vector)\
                                              for pca_vector in pca_vectors])
             
             weights_map = np.full(SOM_space, np.nan)
@@ -206,6 +231,8 @@ class SelfOrganizingMap:
               error_thresh = None,
               debug_max_steps = 1):
         
+        self.errors = []
+        
         weights = self.weights_map.copy()
         complete_data = self.data.copy()
         complete_variance = self.variances.copy()
@@ -216,7 +243,7 @@ class SelfOrganizingMap:
         while continue_training: 
 
             np.random.shuffle(self.randomized_data_indices)
-            
+
             for index in self.randomized_data_indices:
                 weights, bmu_coords = training_step(weights,
                                                     complete_data[index],
@@ -231,9 +258,9 @@ class SelfOrganizingMap:
             
             self.weights_map = weights
             self.step += 1
-            error = e_est.max_misalignment(weights,
-                                           complete_data,
-                                           self.bmu_indices)
+            error = e_est.quantization_error(weights,
+                                             complete_data,
+                                             self.bmu_indices)
             
             if self.step >= self.maximum_steps:
                 if self.termination == 'maximum_steps': continue_training = False
@@ -242,22 +269,9 @@ class SelfOrganizingMap:
                 if self.termination == 'error_thresh': continue_training = False
             
             print(f'Step {self.step} complete. Error: {error:.3f}')
+            self.errors.append(error)
 
         print(f'SOM converged at step {self.step} to error {error}')
-
-        # for step_count in range(debug_max_steps):
-        #     for index in range(self.data_len):
-        #         weights, bmu_coords = training_step(weights,
-        #                                             complete_data[index],
-        #                                             complete_variance[index],
-        #                                             step_count,
-        #                                             lrf.power_law_lrf,
-        #                                             (1000, 0.5),
-        #                                             nhb.gaussian_nbh,
-        #                                             (self.mapsize, 2, 1000)
-        #                                             )
-        #         self.bmu_indices[index] = (bmu_coords)
-        #     self.step += 1
 
     def label_map(self,
                   parameters,
@@ -352,17 +366,10 @@ class SelfOrganizingMap:
 
         for index in range(prediction_input_len):
 
-            print(self.prediction_input[index])
             bmu_coords = find_bmu_coords(self.weights_map,
                                          self.prediction_input[index],
                                          unitary_covar_vector)
-            print(bmu_coords)
             prediction_results[index] = self.map_labels[bmu_coords]
         
         self.prediction_results = prediction_results
         return prediction_results
-
-    def prediction_statistics(self,
-                              return_values = False):
-        
-        raise(NotImplementedError)

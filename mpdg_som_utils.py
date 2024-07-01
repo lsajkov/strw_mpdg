@@ -117,5 +117,82 @@ class SOM_ErrorEstimators:
         
         return max_misalign
 
-    def quantization_error(step):
-        raise(NotImplementedError())
+    def quantization_error(weight_vectors,
+                           data,
+                           bmu_indices):
+        
+        quantization_errors = np.full_like(data, np.nan)
+        for index in range(len(data)):
+            bmu_index = bmu_indices[index]
+            data_vector = data[index]
+            misalignment = weight_vectors[*bmu_index, :] - data_vector
+            quantization_errors[index] = np.linalg.norm(misalignment)
+                
+        rms_quantization_errors = np.sqrt(np.mean(quantization_errors**2))
+        return rms_quantization_errors
+
+class SOM_Normalizers:
+
+    class ZeroMean_UnitVariance():
+
+        def __init___(self,
+                      variable_names):
+            
+            self.normalization_params = {}
+            self.variable_names = variable_names
+
+        def normalize(self,
+                      data):
+
+            for i, variable in enumerate(self.variable_names):
+                self.normalization_params[variable] = {}
+
+                self.normalization_params[variable]['mean'] = np.mean(data[:, i])
+                self.normalization_params[variable]['std']  = np.std(data[:, i])
+
+            for i, variable in enumerate(self.variable_names):
+                data[:, i] -= self.normalization_params[variable]['mean']
+                data[:, i] /= self.normalization_params[variable]['std']
+
+            return data
+
+        def denormalize(self,
+                        data):
+
+            for i, variable in enumerate(self.variable_names):
+                data[:, i] *= self.normalization_params[variable]['std']
+                data[:, i] += self.normalization_params[variable]['mean']
+
+            return data
+
+    class UnitRange():
+
+        def __init__(self,
+                     variable_names):
+
+            self.normalization_params = {}
+            self.variable_names = variable_names
+
+        def normalize(self,
+                      data):
+            
+            for i, variable in enumerate(self.variable_names):
+                self.normalization_params[variable] = {}
+                
+                self.normalization_params[variable]['max'] = np.max(data[:, i])
+                self.normalization_params[variable]['min'] = np.min(data[:, i])
+
+            for i, variable in enumerate(self.variable_names):
+                data[:, i] -= self.normalization_params[variable]['min']
+                data[:, i] /= self.normalization_params[variable]['max'] - self.normalization_params[variable]['min']
+
+            return data
+        
+        def denormalize(self,
+                        data):
+            
+            for i, variable in enumerate(self.variable_names):
+                data[:, i] *= self.normalization_params[variable]['max'] - self.normalization_params[variable]['min']
+                data[:, i] += self.normalization_params[variable]['min']
+            
+            return data
