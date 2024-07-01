@@ -49,7 +49,7 @@ class SelfOrganizingMap:
             self.mapsize = [mapsize[i] for i in range(len(mapsize))]
         else: raise(ValueError('Mapsize must be an integer or a pair of numbers in list or tuple.'))
 
-        self.map_dimensionality = len(mapsize)
+        self.map_dimensionality = len(self.mapsize)
                     
         if initialization in ['random', 'pca']:
             self.initialization = initialization
@@ -220,7 +220,7 @@ class SelfOrganizingMap:
 
             for ii in range(self.data_dim):
                 weights_map[..., ii] = np.sum([pca_map[jj] * pca_vectors[:, ii][jj]\
-                                               for jj in range(self.map_dimensionality)], axis = 0)
+                                               for jj in range(self.map_dimensionality)], axis = 0).transpose()
 
         self.weights_map = weights_map
         self.step = 0
@@ -261,17 +261,19 @@ class SelfOrganizingMap:
             error = e_est.quantization_error(weights,
                                              complete_data,
                                              self.bmu_indices)
-            
+            self.error = error
+
             if self.step >= self.maximum_steps:
                 if self.termination == 'maximum_steps': continue_training = False
             
-            if error <= self.error_thresh:
+            if self.error <= self.error_thresh:
                 if self.termination == 'error_thresh': continue_training = False
             
-            print(f'Step {self.step} complete. Error: {error:.3f}')
-            self.errors.append(error)
+            print(f'Step {self.step} complete. Error: {self.error:.3f}')
+            self.errors.append(self.error)
 
-        print(f'SOM converged at step {self.step} to error {error}')
+        print(f'SOM converged at step {self.step} to error {self.error}')
+        return error
 
     def label_map(self,
                   parameters,
