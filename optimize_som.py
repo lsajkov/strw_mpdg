@@ -30,7 +30,7 @@ randomized_idx = randomized_idx[:data_cut]
 name = 'mpdg_optuna'
 
 initialization = 'pca'
-termination = 'both'
+termination = 'either'
 learning_rate_function = 'power_law'
 neighborhood_function = 'gaussian'
 error_estimator = 'quantization_error'
@@ -74,10 +74,11 @@ def ObjectiveFunction(trial):
 from datetime import datetime
 todays_date = datetime.today().strftime('%d%b%y')
 study_name = f'SOM_optuna_{todays_date}'
+n_trials = 25
 
 study = optuna.create_study(study_name = study_name,
                             direction = 'minimize')
-study.optimize(ObjectiveFunction, n_trials = 25)
+study.optimize(ObjectiveFunction, n_trials = n_trials)
 
 #save outputs
 import json
@@ -93,3 +94,4 @@ for trial in study.get_trials():
 
 with open(f'{results_directory}/SOM_optuna_trials.json', 'w') as json_file:
     json.dump(json_file_contents, json_file)
+

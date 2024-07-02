@@ -282,24 +282,21 @@ class SelfOrganizingMap:
         print(f'SOM converged at step {self.step} to error {self.error}')
         return error
 
-
     def label_map(self,
-                  parameters,
+                  labeled_data,
                   parameter_names = None):
         
-        if len(np.shape(parameters)) == 2:
-            self.parameters = np.array(parameters)
+        if len(np.shape(labeled_data)) == 2:
+            self.parameters = np.array(labeled_data)
 
-        elif (len(np.shape(parameters)) == 1) & (len(parameters)> 1):
+        elif (len(np.shape(labeled_data)) == 1) & (len(labeled_data)> 1):
 
-            tuple_params = parameters.as_array()
+            tuple_params = labeled_data.as_array()
             list_params = [list(values) for values in tuple_params]
-            self.parameters = np.array(list_params)
+            self.labeled_data = np.array(list_params)
 
-        if np.shape(self.parameters)[0] != self.data_len:
-            raise(AssertionError('The number of parameter data points does not match the number of data points used to build the map!'))
-
-        self.params_dim = np.shape(self.parameters)[1]
+        self.labeled_data_len = np.shape(self.labeled_data)[0]
+        self.params_dim = np.shape(self.labeled_data)[1] - self.data_dim
 
         if parameter_names != None:
             self.parameter_names = parameter_names
@@ -307,17 +304,33 @@ class SelfOrganizingMap:
         elif parameter_names == None:
             self.parameter_names = [f'param{i}' for i in range(self.params_dim)]
 
-        populated_cells = np.unique(self.bmu_indices, axis = 0)
-
-        if len(populated_cells) > np.prod(self.mapsize):
-            raise(AssertionError('There are more populated cells than there are cells in the entire map. Check logic.'))
-
         self.map_labels = np.full([*self.mapsize, self.params_dim], np.nan)
 
-        for cell in populated_cells:
+        unitary_covar_vector = [1] * self.data_dim
 
-            matching_idx = np.all(self.bmu_indices == cell, axis = -1)
-            self.map_labels[*cell] = np.median(self.parameters[matching_idx], axis = 0)
+        labeled_data_bmu_idx = {}
+        for index in range(self.labeled_data_len):
+
+            bmu_coords = find_bmu_coords(self.weights_map,
+                                         self.labeled_data[index, :self.data_dim])
+            
+        if f'{bmu_coords}' in labeled_data_bmu_idx.keys():
+            labeled_data_bmu_idx[f'{bmu_coords}'].append(index)
+        else:
+            labeled_data_bmu_idx[f'{bmu_coords}'] = []
+            labeled_data_bmu_idx[f'{bmu_coords}'].append(index)
+
+        self.map_labels = np.full([*self.mapsize, self.params_dim], np.nan)
+        
+        iteration_map = np.nditer(self.map_labels[..., 0], flags = ['multi_index'])
+
+        for _ in iteration_map:
+            
+            index = list(iteration_map.multi_index)
+
+            if f'{index}' in labeled_data_bmu_idx.keys():
+                local_vectors = self.labeled_data[labeled_data_bmu_idx[f'{index}']]
+                self.map_labels[*index] = np.nanmedian(local_vectors, axis = 0)
 
 
     def show_map(self, show_labeled = False,
@@ -395,3 +408,38 @@ class SelfOrganizingMap:
         if save_weights:
             np.savetxt(f'{directory_path}/SOM_weights')
         
+    # def label_map(self,
+    #               parameters,
+    #               parameter_names = None):
+        
+    #     if len(np.shape(parameters)) == 2:
+    #         self.parameters = np.array(parameters)
+
+    #     elif (len(np.shape(parameters)) == 1) & (len(parameters)> 1):
+
+    #         tuple_params = parameters.as_array()
+    #         list_params = [list(values) for values in tuple_params]
+    #         self.parameters = np.array(list_params)
+
+    #     if np.shape(self.parameters)[0] != self.data_len:
+    #         raise(AssertionError('The number of parameter data points does not match the number of data points used to build the map!'))
+
+    #     self.params_dim = np.shape(self.parameters)[1]
+
+    #     if parameter_names != None:
+    #         self.parameter_names = parameter_names
+        
+    #     elif parameter_names == None:
+    #         self.parameter_names = [f'param{i}' for i in range(self.params_dim)]
+
+    #     populated_cells = np.unique(self.bmu_indices, axis = 0)
+
+    #     if len(populated_cells) > np.prod(self.mapsize):
+    #         raise(AssertionError('There are more populated cells than there are cells in the entire map. Check logic.'))
+
+    #     self.map_labels = np.full([*self.mapsize, self.params_dim], np.nan)
+
+    #     for cell in populated_cells:
+
+    #         matching_idx = np.all(self.bmu_indices == cell, axis = -1)
+    #         self.map_labels[*cell] = np.median(self.parameters[matching_idx], axis = 0)
