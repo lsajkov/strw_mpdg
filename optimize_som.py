@@ -21,7 +21,7 @@ GAMA_vect_data.add_column(GAMA_vect_data['r_mag_err'], index = 4, name = 'surf_b
 input_data = GAMA_vect_data['r_mag', 'gr_color', 'surf_bright_r']
 input_stds = GAMA_vect_data['r_mag_err', 'gr_color_err', 'surf_bright_r_err']
 
-data_cut = 1200 #use up to this much of the data (-1 uses entire dataset)
+data_cut = 18000 #use up to this much of the data (-1 uses entire dataset)
 randomized_idx = np.arange(0, len(input_data))
 np.random.shuffle(randomized_idx)
 randomized_idx = randomized_idx[:data_cut]
@@ -36,14 +36,15 @@ neighborhood_function = 'gaussian'
 error_estimator = 'quantization_error'
 
 #initalize the SOM with Optuna hyperparameter search
+maximum_steps = 20
 
 def ObjectiveFunction(trial):
 
-    mapsize_len   = trial.suggest_int('mapsize_len', 10, 30)
-    mapsize_wid   = trial.suggest_int('mapsize_wid', 10, 30)
+    mapsize_len   = trial.suggest_int('mapsize_len', 20, 50)
+    mapsize_wid   = trial.suggest_int('mapsize_wid', 20, 50)
     learning_rate = trial.suggest_float('learning_rate', 0.5, 1)
-    kernel_spread = trial.suggest_float('kernel_spread', 0.5, 15)
-    maximum_steps = trial.suggest_int('maximum_steps', 5, 20)
+    kernel_spread = trial.suggest_float('kernel_spread', 0.5, 20)
+    # maximum_steps = trial.suggest_int('maximum_steps', 5, 20)
 
     SOM = SelfOrganizingMap(
         name                   = name,
@@ -76,22 +77,44 @@ todays_date = datetime.today().strftime('%d%b%y')
 study_name = f'SOM_optuna_{todays_date}'
 n_trials = 25
 
+start_time = datetime.today().strftime('%Hh%Mm')
+
+log_file = f'/data2/lsajkov/mpdg/strw_mpdg/optimization_results/output_log_{todays_date}_{start_time}'
+with open(log_file, 'w') as log:
+    log.write(f'SOM Optuna optimization process. Started on {todays_date} at {start_time}.')
+    log.write(f'trial\terror\tparams\n')
+
+def dump_to_file(study, frozen_trial):
+
+    ft = frozen_trial
+    with open(log_file, 'a') as log:
+        log.write(f'{ft.number}\t{ft.value:3f}\t{ft.params}\n')
+
 study = optuna.create_study(study_name = study_name,
                             direction = 'minimize')
-study.optimize(ObjectiveFunction, n_trials = n_trials)
+study.optimize(ObjectiveFunction,
+               n_trials = n_trials,
+               callbacks = [dump_to_file])
 
-#save outputs
-import json
+with open(log_file, 'a') as log:
+    
+    bft = study.best_trial
+    log.write('best trial:\n')
+    log.write(f'{bft.number}\t{bft.value:.3f}\t{bft.params}')
 
-results_directory = f'/data2/lsajkov/mpdg/strw_mpdg/{study_name}'
+# #save outputs
+# import json
 
-json_file_contents = {}
-for trial in study.get_trials():
-    json_file_contents[f'trial{trial.number}'] = {}
-    json_file_contents[f'trial{trial.number}']['error'] = trial.values
-    for param in trial.params.keys():
-        json_file_contents[f'trial{trial.number}'][param] = trial.params[param]
+# results_directory = f'/data2/lsajkov/mpdg/strw_mpdg/{study_name}'
 
-with open(f'{results_directory}/SOM_optuna_trials.json', 'w') as json_file:
-    json.dump(json_file_contents, json_file)
+# # json_file_contents = {}
+# # for trial in study.get_trials():
+# #     json_file_contents[f'trial{trial.number}'] = {}
+#     json_file_contents[f'trial{trial.number}']['error'] = trial.values
+#     for param in trial.params.keys():
+#         json_file_contents[f'trial{trial.number}'][param] = trial.params[param]
+
+# with open(f'{results_directory}/SOM_optuna_trials.json', 'w') as json_file:
+#     json.dump(json_file_contents, json_file)
+
 
