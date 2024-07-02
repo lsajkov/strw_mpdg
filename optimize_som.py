@@ -58,7 +58,7 @@ def ObjectiveFunction(trial):
         learning_rate          = learning_rate,
         kernel_spread          = kernel_spread,
         maximum_steps          = maximum_steps,
-        error_thresh           = 0.1)
+        error_thresh           = 0.05)
     
     SOM.load_data(input_data[randomized_idx])
     SOM.normalize_data()
