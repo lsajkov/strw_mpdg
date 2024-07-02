@@ -78,8 +78,7 @@ def training_step(weight_vectors,
 
 class SOM_LearningRateFunctions:
 
-    def power_law_lrf(step,
-                  maximum_steps, learning_rate):
+    def power_law_lrf(step, learning_rate, maximum_steps):
         
         return learning_rate ** (step/maximum_steps)
 

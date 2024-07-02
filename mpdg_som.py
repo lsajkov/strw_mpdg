@@ -55,9 +55,9 @@ class SelfOrganizingMap:
             self.initialization = initialization
         else: raise(TypeError('Please pass an initalization type with initializaton = "type". Types can be: "random", "pca".'))
 
-        if termination in ['error_thresh', 'maximum_steps']:
+        if termination in ['error_thresh', 'maximum_steps', 'either']:
             self.termination = termination
-        else: raise(TypeError('Please pass a termination type with termination = "type". Types can be: "error_thresh", "maximum_steps".'))
+        else: raise(TypeError('Please pass a termination type with termination = "type". Types can be: "error_thresh", "maximum_steps", "either".'))
 
         if learning_rate_function in ['power_law']:
             self.learning_rate_function = learning_rate_function
@@ -77,15 +77,15 @@ class SelfOrganizingMap:
         else: raise(ValueError('The learning rate must be a float in the range (0, 1)'))
 
         if termination != 'maximum_steps': self.maximum_steps = maximum_steps
-        elif (termination == 'maximum_steps') & (maximum_steps > 0) & isinstance(maximum_steps, int):
+        elif ((termination == 'maximum_steps') | (termination == 'either')) & (maximum_steps > 0) & isinstance(maximum_steps, int):
             self.maximum_steps = maximum_steps
         else: raise(ValueError('The number of maximum steps must be a positive (non-zero) integer.'))
 
-        if termination != 'error_thresh': self.error_thresh = 0
-        elif (termination == 'error_thresh') & (error_thresh != None):
+        if (termination != 'error_thresh') & (termination != 'either'): self.error_thresh = 0
+        elif ((termination == 'error_thresh') | (termination == 'either')) & (error_thresh != None):
             self.error_thresh = error_thresh
-        elif (termination == 'error_thresh') & (error_thresh == None):
-            raise(ValueError('Please pass an error threshold to use error_thresh as a terminator.'))
+        elif ((termination == 'error_thresh') | (termination == 'either')) & (error_thresh == None):
+            raise(ValueError('Please pass an error threshold to use error_thresh or either as a terminator.'))
         
         self.kernel_spread = kernel_spread
         self.normalization = normalization
@@ -255,9 +255,9 @@ class SelfOrganizingMap:
                                                     complete_variance[index],
                                                     self.step,
                                                     lrf.power_law_lrf,
-                                                    (1000, 0.5),
+                                                    (self.learning_rate, self.maximum_steps),
                                                     nhb.gaussian_nbh,
-                                                    (self.mapsize, 2, 1000)
+                                                    (self.mapsize, self.kernel_spread, self.maximum_steps)
                                                     )
                 self.bmu_indices[index] = (bmu_coords)
             
@@ -269,10 +269,12 @@ class SelfOrganizingMap:
             self.error = error
 
             if self.step >= self.maximum_steps:
-                if self.termination == 'maximum_steps': continue_training = False
+                if self.termination == 'either': continue_training = False
+                elif self.termination == 'maximum_steps': continue_training = False
             
             if self.error <= self.error_thresh:
-                if self.termination == 'error_thresh': continue_training = False
+                if self.termination == 'either': continue_training = False
+                elif self.termination == 'error_thresh': continue_training = False
             
             print(f'Step {self.step} complete. Error: {self.error:.3f}')
             self.errors.append(self.error)
@@ -349,8 +351,8 @@ class SelfOrganizingMap:
                 ax.axis('off')
                 fig.colorbar(mappable = imsh, ax = ax,
                              label = name, location = 'bottom', pad = 0.01)
-               
-                
+
+
     def predict(self,
                 prediction_input):
         
@@ -383,3 +385,13 @@ class SelfOrganizingMap:
         
         self.prediction_results = prediction_results
         return prediction_results
+
+    def save_outputs(self,
+                     directory_path,
+                     save_weights = True,
+                     save_predictions = False,
+                     save_parameters = False):
+        
+        if save_weights:
+            np.savetxt(f'{directory_path}/SOM_weights')
+        
