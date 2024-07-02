@@ -81,7 +81,7 @@ start_time = datetime.today().strftime('%Hh%Mm')
 
 log_file = f'/data2/lsajkov/mpdg/strw_mpdg/optimization_results/output_log_{todays_date}_{start_time}'
 with open(log_file, 'w') as log:
-    log.write(f'SOM Optuna optimization process. Started on {todays_date} at {start_time}.')
+    log.write(f'SOM Optuna optimization process. Started on {todays_date} at {start_time}.\n')
     log.write(f'trial\terror\tparams\n')
 
 def dump_to_file(study, frozen_trial):
