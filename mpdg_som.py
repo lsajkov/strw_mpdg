@@ -170,6 +170,43 @@ class SelfOrganizingMap:
 
         self.variances = normalized_stds**2
 
+    def load_labeling_data(self,
+                           labeling_data,
+                           parameter_names: list = None):
+
+        if len(np.shape(labeling_data)) == 2:
+            self.labeling_data = np.array(labeling_data)
+
+        elif (len(np.shape(labeling_data)) == 1) & (len(labeling_data) > 1):
+
+            tuple_labeling_data = labeling_data.as_array()
+            list_labeling_data = [list(values) for values in tuple_labeling_data]
+            self.labeling_data = np.array(list_labeling_data)
+        
+        else: raise(TypeError('Please pass the data as a 2-d array. Each object should be an n-dimensional vector. All objects should have the same dimension.'))
+
+        self.labeling_data_len = np.shape(self.labeling_data)[0]
+        self.labeling_data_dim  = np.shape(self.labeling_data)[1]
+
+        if parameter_names != None:
+            self.parameter_names = parameter_names
+        
+        elif parameter_names == None:
+            self.parameter_names = [f'var{i}' for i in range(self.labeling_data_dim - self.data_dim)]
+
+    def normalize_labeling_data(self):
+
+        if self.normalization in ['zero_mean_unit_variance', 'zmuv']:
+            normalizer = som_norm.ZeroMean_UnitVariance(self.parameter_names)
+        
+        if self.normalization in ['unit_range', 'ur']:
+            normalizer = som_norm.UnitRange(self.parameter_names)
+            
+        original_labeling_data = self.labeling_data.copy()
+        normalized_labeling_data = normalizer.normalize(original_labeling_data)
+        self.labeling_data = normalized_labeling_data
+        self.labeling_normalization_params = normalizer.normalization_params
+
 
     def data_statistics(self):
 
@@ -230,11 +267,7 @@ class SelfOrganizingMap:
         self.step = 0
 
 
-    def train(self,
-              nans_in_empty_cells = False,
-              error_func = None,
-              error_thresh = None,
-              debug_max_steps = 1):
+    def train(self):
         
         self.errors = []
         
@@ -282,37 +315,19 @@ class SelfOrganizingMap:
         print(f'SOM converged at step {self.step} to error {self.error}')
         return error
 
-    def label_map(self,
-                  labeled_data,
-                  parameter_names = None):
-        
-        if len(np.shape(labeled_data)) == 2:
-            self.parameters = np.array(labeled_data)
+    def label_map(self):
 
-        elif (len(np.shape(labeled_data)) == 1) & (len(labeled_data)> 1):
+        self.map_labels = np.full([*self.mapsize, self.labeling_data_dim - self.data_dim],
+                                  np.nan)
 
-            tuple_params = labeled_data.as_array()
-            list_params = [list(values) for values in tuple_params]
-            self.labeled_data = np.array(list_params)
-
-        self.labeled_data_len = np.shape(self.labeled_data)[0]
-        self.params_dim = np.shape(self.labeled_data)[1] - self.data_dim
-
-        if parameter_names != None:
-            self.parameter_names = parameter_names
-        
-        elif parameter_names == None:
-            self.parameter_names = [f'param{i}' for i in range(self.params_dim)]
-
-        self.map_labels = np.full([*self.mapsize, self.params_dim], np.nan)
-
-        unitary_covar_vector = [1] * self.data_dim
+        unitary_covar_vector = [1] * self.labeling_data_dim
 
         labeled_data_bmu_idx = {}
         for index in range(self.labeled_data_len):
 
             bmu_coords = find_bmu_coords(self.weights_map,
-                                         self.labeled_data[index, :self.data_dim])
+                                         self.labeling_data[index, :self.data_dim],
+                                         unitary_covar_vector)
             
         if f'{bmu_coords}' in labeled_data_bmu_idx.keys():
             labeled_data_bmu_idx[f'{bmu_coords}'].append(index)
@@ -320,17 +335,18 @@ class SelfOrganizingMap:
             labeled_data_bmu_idx[f'{bmu_coords}'] = []
             labeled_data_bmu_idx[f'{bmu_coords}'].append(index)
 
-        self.map_labels = np.full([*self.mapsize, self.params_dim], np.nan)
+        self.map_labels = np.full([*self.mapsize, self.labeling_data_dim - self.data_dim],
+                                  np.nan)
         
         iteration_map = np.nditer(self.map_labels[..., 0], flags = ['multi_index'])
 
         for _ in iteration_map:
             
-            index = list(iteration_map.multi_index)
+            index = iteration_map.multi_index
 
             if f'{index}' in labeled_data_bmu_idx.keys():
-                local_vectors = self.labeled_data[labeled_data_bmu_idx[f'{index}']]
-                self.map_labels[*index] = np.nanmedian(local_vectors, axis = 0)
+                local_vectors = self.labeling_data[labeled_data_bmu_idx[f'{index}']]
+                self.map_labels[*index] = np.nanmedian(local_vectors[:, self.data_dim:], axis = 0)
 
 
     def show_map(self, show_labeled = False,
