@@ -120,6 +120,7 @@ class SelfOrganizingMap:
         self.randomized_data_indices = np.arange(0, self.data_len, 1)
         self.bmu_indices = np.full([self.data_len, self.map_dimensionality], 0, dtype = int)
 
+
     def normalize_data(self):
 
         if self.normalization in ['zero_mean_unit_variance', 'zmuv']:
@@ -152,6 +153,7 @@ class SelfOrganizingMap:
 
         self.use_covariance = True
 
+
     def normalize_standard_deviations(self):
 
         original_stds = np.sqrt(self.variances.copy())
@@ -168,6 +170,7 @@ class SelfOrganizingMap:
 
         self.variances = normalized_stds**2
 
+
     def data_statistics(self):
 
         print('| Data statistics ')
@@ -183,6 +186,7 @@ class SelfOrganizingMap:
         for i in range(self.data_dim): print(f'{np.median(self.data[:, i]):.3f}', end = '\t')
         print('\nstd\t', end = '')
         for i in range(self.data_dim): print(f'{np.std(self.data[:, i]):.3f}', end = '\t')
+
 
     def build_SOM(self):
 
@@ -224,6 +228,7 @@ class SelfOrganizingMap:
 
         self.weights_map = weights_map
         self.step = 0
+
 
     def train(self,
               nans_in_empty_cells = False,
@@ -275,6 +280,7 @@ class SelfOrganizingMap:
         print(f'SOM converged at step {self.step} to error {self.error}')
         return error
 
+
     def label_map(self,
                   parameters,
                   parameter_names = None):
@@ -311,6 +317,7 @@ class SelfOrganizingMap:
             matching_idx = np.all(self.bmu_indices == cell, axis = -1)
             self.map_labels[*cell] = np.median(self.parameters[matching_idx], axis = 0)
 
+
     def show_map(self, show_labeled = False,
                  cmap = 'jet_r'):
 
@@ -342,6 +349,7 @@ class SelfOrganizingMap:
                 ax.axis('off')
                 fig.colorbar(mappable = imsh, ax = ax,
                              label = name, location = 'bottom', pad = 0.01)
+               
                 
     def predict(self,
                 prediction_input):
