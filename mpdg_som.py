@@ -197,10 +197,10 @@ class SelfOrganizingMap:
     def normalize_labeling_data(self):
 
         if self.normalization in ['zero_mean_unit_variance', 'zmuv']:
-            normalizer = som_norm.ZeroMean_UnitVariance(self.parameter_names)
+            normalizer = som_norm.ZeroMean_UnitVariance(self.variable_names)
         
         if self.normalization in ['unit_range', 'ur']:
-            normalizer = som_norm.UnitRange(self.parameter_names)
+            normalizer = som_norm.UnitRange(self.variable_names)
             
         original_labeling_data = self.labeling_data.copy()
         normalized_labeling_data = normalizer.normalize(original_labeling_data)
@@ -317,36 +317,36 @@ class SelfOrganizingMap:
 
     def label_map(self):
 
-        self.map_labels = np.full([*self.mapsize, self.labeling_data_dim - self.data_dim],
+        self.labeled_map = np.full([*self.mapsize, self.labeling_data_dim - self.data_dim],
                                   np.nan)
 
-        unitary_covar_vector = [1] * self.labeling_data_dim
+        unitary_covar_vector = [1] * self.data_dim
 
-        labeled_data_bmu_idx = {}
-        for index in range(self.labeled_data_len):
+        labeling_data_bmu_idx = {}
+        for index in range(self.labeling_data_len):
 
             bmu_coords = find_bmu_coords(self.weights_map,
                                          self.labeling_data[index, :self.data_dim],
                                          unitary_covar_vector)
             
-        if f'{bmu_coords}' in labeled_data_bmu_idx.keys():
-            labeled_data_bmu_idx[f'{bmu_coords}'].append(index)
-        else:
-            labeled_data_bmu_idx[f'{bmu_coords}'] = []
-            labeled_data_bmu_idx[f'{bmu_coords}'].append(index)
+            if f'{bmu_coords}' in labeling_data_bmu_idx.keys():
+                labeling_data_bmu_idx[f'{bmu_coords}'].append(index)
+            else:
+                labeling_data_bmu_idx[f'{bmu_coords}'] = []
+                labeling_data_bmu_idx[f'{bmu_coords}'].append(index)
 
-        self.map_labels = np.full([*self.mapsize, self.labeling_data_dim - self.data_dim],
+        self.labeled_map = np.full([*self.mapsize, self.labeling_data_dim - self.data_dim],
                                   np.nan)
         
-        iteration_map = np.nditer(self.map_labels[..., 0], flags = ['multi_index'])
+        iteration_map = np.nditer(self.labeled_map[..., 0], flags = ['multi_index'])
 
         for _ in iteration_map:
             
             index = iteration_map.multi_index
 
-            if f'{index}' in labeled_data_bmu_idx.keys():
-                local_vectors = self.labeling_data[labeled_data_bmu_idx[f'{index}']]
-                self.map_labels[*index] = np.nanmedian(local_vectors[:, self.data_dim:], axis = 0)
+            if f'{index}' in labeling_data_bmu_idx.keys():
+                local_vectors = self.labeling_data[labeling_data_bmu_idx[f'{index}']]
+                self.labeled_map[*index] = np.nanmedian(local_vectors[:, self.data_dim:], axis = 0)
 
 
     def show_map(self, show_labeled = False,
@@ -376,7 +376,7 @@ class SelfOrganizingMap:
             
             for i, name in enumerate(self.parameter_names):
                 ax = fig.add_subplot(1, variables_dim, i + 1)
-                imsh = ax.imshow(self.map_labels[..., i], origin = 'lower', cmap = cmap)
+                imsh = ax.imshow(self.labeled_map[..., i], origin = 'lower', cmap = cmap)
                 ax.axis('off')
                 fig.colorbar(mappable = imsh, ax = ax,
                              label = name, location = 'bottom', pad = 0.01)
@@ -403,14 +403,14 @@ class SelfOrganizingMap:
 
         unitary_covar_vector = [1] * prediction_input_dim
 
-        prediction_results = np.full([prediction_input_len, self.params_dim], np.nan)
+        prediction_results = np.full([prediction_input_len, self.labeling_data_dim - self.data_dim], np.nan)
 
         for index in range(prediction_input_len):
 
             bmu_coords = find_bmu_coords(self.weights_map,
                                          self.prediction_input[index],
                                          unitary_covar_vector)
-            prediction_results[index] = self.map_labels[bmu_coords]
+            prediction_results[index] = self.labeled_map[*bmu_coords]
         
         self.prediction_results = prediction_results
         return prediction_results
