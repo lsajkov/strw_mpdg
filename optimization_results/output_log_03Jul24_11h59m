@@ -1,3 +1,7 @@
 SOM Optuna optimization process. Started on 03Jul24 at 11h59m.
 trial	error	params
 0	0.223600	{'mapsize_len': 35, 'mapsize_wid': 44, 'learning_rate': 0.5883975187412411, 'kernel_spread': 14.175095490195615}
+1	0.254265	{'mapsize_len': 44, 'mapsize_wid': 24, 'learning_rate': 0.9233150204967275, 'kernel_spread': 18.45632719855214}
+2	0.234353	{'mapsize_len': 31, 'mapsize_wid': 45, 'learning_rate': 0.7158280599609321, 'kernel_spread': 8.126981002495196}
+3	0.240628	{'mapsize_len': 24, 'mapsize_wid': 48, 'learning_rate': 0.8053408524221934, 'kernel_spread': 2.248667968952054}
+4	0.241907	{'mapsize_len': 30, 'mapsize_wid': 43, 'learning_rate': 0.7940990423338121, 'kernel_spread': 0.5992966302352323}
