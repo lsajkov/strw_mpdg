@@ -4,7 +4,6 @@
 from astropy.io import fits
 from astropy.table import Table
 import numpy as np
-import datetime
 
 from mpdg_som import SelfOrganizingMap
 import optuna
@@ -46,6 +45,8 @@ def ObjectiveFunction(trial):
     kernel_spread = trial.suggest_float('kernel_spread', 0.5, 20)
     # maximum_steps = trial.suggest_int('maximum_steps', 5, 20)
 
+    global SOM
+
     SOM = SelfOrganizingMap(
         name                   = name,
         mapsize                = [mapsize_len, mapsize_wid],
@@ -72,7 +73,9 @@ def ObjectiveFunction(trial):
 
     return error
 
+import os
 from datetime import datetime
+
 todays_date = datetime.today().strftime('%d%b%y')
 study_name = f'SOM_optuna_{todays_date}'
 n_trials = 25
@@ -84,11 +87,20 @@ with open(log_file, 'w') as log:
     log.write(f'SOM Optuna optimization process. Started on {todays_date} at {start_time}.\n')
     log.write(f'trial\terror\tparams\n')
 
+if not os.path.exists(f'/data2/lsajkov/mpdg/saved_soms/{todays_date}_{start_time}'):
+    os.mkdir(f'/data2/lsajkov/mpdg/saved_soms/{todays_date}_{start_time}')
+
+
 def dump_to_file(study, frozen_trial):
 
     ft = frozen_trial
     with open(log_file, 'a') as log:
         log.write(f'{ft.number}\t{ft.value:3f}\t{ft.params}\n')
+    
+    save_map_file = f'/data2/lsajkov/mpdg/saved_soms/{todays_date}_{start_time}/trial{ft.number}'
+    np.save(save_map_file, SOM.weights_map)
+
+
 
 study = optuna.create_study(study_name = study_name,
                             direction = 'minimize')
