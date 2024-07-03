@@ -21,6 +21,8 @@ input_data = GAMA_vect_data['r_mag', 'gr_color', 'surf_bright_r']
 input_stds = GAMA_vect_data['r_mag_err', 'gr_color_err', 'surf_bright_r_err']
 
 data_cut = 18000 #use up to this much of the data (-1 uses entire dataset)
+
+#pick a random subset of the data, as to avoid sampling bias
 randomized_idx = np.arange(0, len(input_data))
 np.random.shuffle(randomized_idx)
 randomized_idx = randomized_idx[:data_cut]
@@ -28,11 +30,11 @@ randomized_idx = randomized_idx[:data_cut]
 #set SOM metaparameters
 name = 'mpdg_optuna'
 
-initialization = 'pca'
-termination = 'either'
+initialization         = 'pca'
+termination            = 'either'
 learning_rate_function = 'power_law'
-neighborhood_function = 'gaussian'
-error_estimator = 'quantization_error'
+neighborhood_function  = 'gaussian'
+error_estimator        = 'quantization_error'
 
 #initalize the SOM with Optuna hyperparameter search
 maximum_steps = 20
@@ -77,10 +79,10 @@ import os
 from datetime import datetime
 
 todays_date = datetime.today().strftime('%d%b%y')
-study_name = f'SOM_optuna_{todays_date}'
-n_trials = 25
+start_time  = datetime.today().strftime('%Hh%Mm')
+study_name  = f'SOM_optuna_{todays_date}'
 
-start_time = datetime.today().strftime('%Hh%Mm')
+n_trials = 25
 
 log_file = f'/data2/lsajkov/mpdg/strw_mpdg/optimization_results/output_log_{todays_date}_{start_time}'
 with open(log_file, 'w') as log:
@@ -101,32 +103,14 @@ def dump_to_file(study, frozen_trial):
     np.save(save_map_file, SOM.weights_map)
 
 
-
 study = optuna.create_study(study_name = study_name,
-                            direction = 'minimize')
+                            direction  = 'minimize')
 study.optimize(ObjectiveFunction,
-               n_trials = n_trials,
+               n_trials  = n_trials,
                callbacks = [dump_to_file])
 
 with open(log_file, 'a') as log:
     
     bft = study.best_trial
     log.write('best trial:\n')
-    log.write(f'{bft.number}\t{bft.value:.3f}\t{bft.params}')
-
-# #save outputs
-# import json
-
-# results_directory = f'/data2/lsajkov/mpdg/strw_mpdg/{study_name}'
-
-# # json_file_contents = {}
-# # for trial in study.get_trials():
-# #     json_file_contents[f'trial{trial.number}'] = {}
-#     json_file_contents[f'trial{trial.number}']['error'] = trial.values
-#     for param in trial.params.keys():
-#         json_file_contents[f'trial{trial.number}'][param] = trial.params[param]
-
-# with open(f'{results_directory}/SOM_optuna_trials.json', 'w') as json_file:
-#     json.dump(json_file_contents, json_file)
-
-
+    log.write(f'{bft.number}\t{bft.value:.3f}\t{bft.params}\n')
