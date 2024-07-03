@@ -9,7 +9,7 @@ from mpdg_som import SelfOrganizingMap
 import optuna
 
 #load in data
-cut_data_file = '/data2/lsajkov/mpdg/data_products/GAMA/GAMA_primtarg_snr100_lms6_12_25jun2024.fits'
+cut_data_file = '/data2/lsajkov/mpdg/data_products/GAMA/GAMA_primtarg_snr100_lms6_12_03jul2024.fits'
 
 with fits.open(cut_data_file) as cat:
     GAMA_vect_data = Table(cat[1].data)
@@ -20,7 +20,7 @@ GAMA_vect_data.add_column(GAMA_vect_data['r_mag_err'], index = 4, name = 'surf_b
 input_data = GAMA_vect_data['r_mag', 'gr_color', 'surf_bright_r']
 input_stds = GAMA_vect_data['r_mag_err', 'gr_color_err', 'surf_bright_r_err']
 
-data_cut = 18000 #use up to this much of the data (-1 uses entire dataset)
+data_cut = 14818 #use up to this much of the data (-1 uses entire dataset)
 
 #pick a random subset of the data, as to avoid sampling bias
 randomized_idx = np.arange(0, len(input_data))
@@ -37,7 +37,7 @@ neighborhood_function  = 'gaussian'
 error_estimator        = 'quantization_error'
 
 #initalize the SOM with Optuna hyperparameter search
-maximum_steps = 20
+maximum_steps = 10
 
 def ObjectiveFunction(trial):
 

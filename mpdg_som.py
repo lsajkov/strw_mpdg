@@ -211,6 +211,7 @@ class SelfOrganizingMap:
     def data_statistics(self):
 
         print('| Data statistics ')
+        print(f'total entries: {self.data_len}\n')
         print('stat\t', end = '')
         for i in range(self.data_dim): print(self.variable_names[i], end = '\t')
         print('\nmin\t', end = '')
@@ -334,6 +335,8 @@ class SelfOrganizingMap:
             else:
                 labeling_data_bmu_idx[f'{bmu_coords}'] = []
                 labeling_data_bmu_idx[f'{bmu_coords}'].append(index)
+
+        self.labeling_data_bmu_idx = labeling_data_bmu_idx
 
         self.labeled_map = np.full([*self.mapsize, self.labeling_data_dim - self.data_dim],
                                   np.nan)
