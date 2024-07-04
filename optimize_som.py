@@ -9,18 +9,16 @@ from mpdg_som import SelfOrganizingMap
 import optuna
 
 #load in data
-cut_data_file = '/data2/lsajkov/mpdg/data_products/GAMA/GAMA_primtarg_snr100_lms6_12_03jul2024.fits'
+data_file = '/data2/lsajkov/mpdg/data_products/GAMA/GAMA_SOM_training_catalog_04Jul24.fits'
 
-with fits.open(cut_data_file) as cat:
-    GAMA_vect_data = Table(cat[1].data)
-
-GAMA_vect_data.add_column(GAMA_vect_data['r_mag_err'], index = 4, name = 'surf_bright_r_err')
+with fits.open(data_file) as cat:
+    input_catalog_complete = Table(cat[1].data)
 
 #Select the needed data
-input_data = GAMA_vect_data['r_mag', 'gr_color', 'surf_bright_r']
-input_stds = GAMA_vect_data['r_mag_err', 'gr_color_err', 'surf_bright_r_err']
+input_data = input_catalog_complete['gr_col', 'ug_col', 'ur_col']
+input_stds = input_catalog_complete['gr_col_err', 'ug_col_err', 'ur_col_err']
 
-data_cut = 14818 #use up to this much of the data (-1 uses entire dataset)
+data_cut = int(len(input_data)/10)#use up to this much of the data (-1 uses entire dataset)
 
 #pick a random subset of the data, as to avoid sampling bias
 randomized_idx = np.arange(0, len(input_data))
@@ -41,8 +39,8 @@ maximum_steps = 10
 
 def ObjectiveFunction(trial):
 
-    mapsize_len   = trial.suggest_int('mapsize_len', 20, 50)
-    mapsize_wid   = trial.suggest_int('mapsize_wid', 20, 50)
+    mapsize_len   = trial.suggest_int('mapsize_len', 20, 60)
+    mapsize_wid   = trial.suggest_int('mapsize_wid', 20, 60)
     learning_rate = trial.suggest_float('learning_rate', 0.5, 1)
     kernel_spread = trial.suggest_float('kernel_spread', 0.5, 20)
     # maximum_steps = trial.suggest_int('maximum_steps', 5, 20)

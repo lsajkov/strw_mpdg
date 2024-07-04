@@ -187,6 +187,7 @@ class SelfOrganizingMap:
 
         self.labeling_data_len = np.shape(self.labeling_data)[0]
         self.labeling_data_dim  = np.shape(self.labeling_data)[1]
+        self.labels_dim = self.labeling_data_dim - self.data_dim 
 
         if parameter_names != None:
             self.parameter_names = parameter_names
@@ -316,41 +317,60 @@ class SelfOrganizingMap:
         print(f'SOM converged at step {self.step} to error {self.error}')
         return error
 
-    def label_map(self):
+    def label_map(self,
+                  pdr = 1000):
+        
+        #pdr = probability density resolution
 
-        self.labeled_map = np.full([*self.mapsize, self.labeling_data_dim - self.data_dim],
-                                  np.nan)
+        #initialize the labeled map as a probability distribution for each variable in each cell
+        #the complete map will have number of variables * number of cells probability distributions
+        #the distributions are initialized with p(var|obs) = 0.0, where var is the given variable and obs is an observed value
+        labeled_map = np.full([*self.mapsize, self.labels_dim, pdr],
+                                0.0)
 
         unitary_covar_vector = [1] * self.data_dim
 
-        labeling_data_bmu_idx = {}
+        #create the viable distribution space. This is essentially the integration bounds where var can be non-zero
+        distribution = np.array([np.linspace(np.min(self.labeling_data[:, i]), np.max(self.labeling_data[:, i]), pdr)\
+                                for i in range(self.data_dim, self.labeling_data_dim)])
+
+        #in each probability distribution, add a delta function centered at the
+        #observed value of the variable
         for index in range(self.labeling_data_len):
 
             bmu_coords = find_bmu_coords(self.weights_map,
                                          self.labeling_data[index, :self.data_dim],
                                          unitary_covar_vector)
             
-            if f'{bmu_coords}' in labeling_data_bmu_idx.keys():
-                labeling_data_bmu_idx[f'{bmu_coords}'].append(index)
-            else:
-                labeling_data_bmu_idx[f'{bmu_coords}'] = []
-                labeling_data_bmu_idx[f'{bmu_coords}'].append(index)
+            for i in range(self.labels_dim):
+                delta_index = np.abs(distribution[i] - self.labeling_data[index, self.data_dim + i]).argmin()
+                labeled_map[*bmu_coords, i, delta_index] += 1
 
-        self.labeling_data_bmu_idx = labeling_data_bmu_idx
+        def gaussian(distribution,
+                     sigma, N_cell):
+            return 1/(sigma * np.sqrt(2 * np.pi)) * np.exp(-distribution/(2 * sigma ** 2))
 
-        self.labeled_map = np.full([*self.mapsize, self.labeling_data_dim - self.data_dim],
-                                  np.nan)
-        
-        iteration_map = np.nditer(self.labeled_map[..., 0], flags = ['multi_index'])
 
+        iteration_map = np.nditer(np.full(self.mapsize, 0), flags = ['multi_index'])
         for _ in iteration_map:
-            
-            index = iteration_map.multi_index
+            for i in range(self.labels_dim):
+                
+                if np.sum(labeled_map[iteration_map.multi_index][i]) == 0.:
+                    continue
 
-            if f'{index}' in labeling_data_bmu_idx.keys():
-                local_vectors = self.labeling_data[labeling_data_bmu_idx[f'{index}']]
-                self.labeled_map[*index] = np.nanmedian(local_vectors[:, self.data_dim:], axis = 0)
+                else:
+                    # A_c = np.diff(distribution[i], append = distribution[i][-1]) * 
+                    A_c = np.sum(labeled_map[iteration_map.multi_index][i])
+                    labeled_map[iteration_map.multi_index][i] /= A_c
 
+                    sigma = np.sqrt((1 - 1/A_c) * 0.2 ** 2 + 0.9 ** 2 / A_c)
+                    convolved_distribution = np.convolve(labeled_map[iteration_map.multi_index][i],
+                                                         gaussian(distribution[i], sigma, A_c), mode = 'samae')
+                    convolved_distribution /= np.sum(convolved_distribution)
+
+                    labeled_map[iteration_map.multi_index][i] = convolved_distribution[::-1]
+
+        self.labeled_map = labeled_map
 
     def show_map(self, show_labeled = False,
                  cmap = 'jet_r'):
@@ -374,12 +394,12 @@ class SelfOrganizingMap:
 
         if show_labeled:
 
-            variables_dim = len(self.variable_names)
-            fig = plt.figure(figsize = (variables_dim * 5, 10), constrained_layout = True)
+            fig = plt.figure(figsize = (self.labels_dim * 5, 10), constrained_layout = True)
             
             for i, name in enumerate(self.parameter_names):
-                ax = fig.add_subplot(1, variables_dim, i + 1)
-                imsh = ax.imshow(self.labeled_map[..., i], origin = 'lower', cmap = cmap)
+                ax = fig.add_subplot(1, self.labels_dim, i + 1)
+                imsh = ax.imshow(np.mean(self.labeled_map[..., i, :], axis = -1),
+                                 origin = 'lower', cmap = cmap)
                 ax.axis('off')
                 fig.colorbar(mappable = imsh, ax = ax,
                              label = name, location = 'bottom', pad = 0.01)
@@ -462,3 +482,38 @@ class SelfOrganizingMap:
 
     #         matching_idx = np.all(self.bmu_indices == cell, axis = -1)
     #         self.map_labels[*cell] = np.median(self.parameters[matching_idx], axis = 0)
+
+    # def label_map(self):
+
+    #     self.labeled_map = np.full([*self.mapsize, self.labeling_data_dim - self.data_dim],
+    #                               np.nan)
+
+    #     unitary_covar_vector = [1] * self.data_dim
+
+    #     labeling_data_bmu_idx = {}
+    #     for index in range(self.labeling_data_len):
+
+    #         bmu_coords = find_bmu_coords(self.weights_map,
+    #                                      self.labeling_data[index, :self.data_dim],
+    #                                      unitary_covar_vector)
+            
+    #         if f'{bmu_coords}' in labeling_data_bmu_idx.keys():
+    #             labeling_data_bmu_idx[f'{bmu_coords}'].append(index)
+    #         else:
+    #             labeling_data_bmu_idx[f'{bmu_coords}'] = []
+    #             labeling_data_bmu_idx[f'{bmu_coords}'].append(index)
+
+    #     self.labeling_data_bmu_idx = labeling_data_bmu_idx
+
+    #     self.labeled_map = np.full([*self.mapsize, self.labeling_data_dim - self.data_dim],
+    #                               np.nan)
+        
+    #     iteration_map = np.nditer(self.labeled_map[..., 0], flags = ['multi_index'])
+
+    #     for _ in iteration_map:
+            
+    #         index = iteration_map.multi_index
+
+    #         if f'{index}' in labeling_data_bmu_idx.keys():
+    #             local_vectors = self.labeling_data[labeling_data_bmu_idx[f'{index}']]
+    #             self.labeled_map[*index] = np.nanmedian(local_vectors[:, self.data_dim:], axis = 0)
