@@ -318,8 +318,11 @@ class SelfOrganizingMap:
         return error
 
     def label_map(self,
-                  pdr = 1000):
+                  sigmas_data = None,
+                  sigmas_add = None,
+                  pdr = 1000,):
         
+        self.pdr = pdr
         #pdr = probability density resolution
 
         #initialize the labeled map as a probability distribution for each variable in each cell
@@ -354,8 +357,8 @@ class SelfOrganizingMap:
 
             return 1/(sigma * np.sqrt(2 * np.pi)) * np.exp(-((dist - np.mean(dist))**2)/ (2 * sigma ** 2))
 
-        sigmas_data = [0.2, 0.05]
-        sigmas_add = [0.9, 0.05]
+        if sigmas_data == None: sigmas_data = [0.2, 0.05]
+        if sigmas_add == None: sigmas_add = [0.9, 0.05]
 
         iteration_map = np.nditer(np.full(self.mapsize, 0), flags = ['multi_index'])
         for _ in iteration_map:
@@ -442,6 +445,7 @@ class SelfOrganizingMap:
         unitary_covar_vector = [1] * prediction_input_dim
 
         prediction_results = np.full([prediction_input_len, self.labeling_data_dim - self.data_dim], np.nan)
+        prediction_sigmas  = np.full([prediction_input_len, self.labeling_data_dim - self.data_dim], np.nan)
 
         for index in range(prediction_input_len):
 
@@ -449,9 +453,13 @@ class SelfOrganizingMap:
                                          self.prediction_input[index],
                                          unitary_covar_vector)
             prediction_results[index] = np.sum(self.distribution_xs * self.labeled_map[*bmu_coords], axis = -1)
+
+            prediction_sigmas[index] = np.sqrt(np.sum(self.distribution_xs ** 2 * self.labeled_map[*bmu_coords], axis = -1) -\
+                                               np.sum(self.distribution_xs * self.labeled_map[*bmu_coords], axis = -1))
         
         self.prediction_results = prediction_results
-        return prediction_results
+        self.prediction_sigmas  = prediction_sigmas
+        # return prediction_results
 
     def save_outputs(self,
                      directory_path,
