@@ -346,10 +346,16 @@ class SelfOrganizingMap:
                 delta_index = np.abs(distribution[i] - self.labeling_data[index, self.data_dim + i]).argmin()
                 labeled_map[*bmu_coords, i, delta_index] += 1
 
-        def gaussian(distribution,
-                     sigma, N_cell):
-            return 1/(sigma * np.sqrt(2 * np.pi)) * np.exp(-distribution/(2 * sigma ** 2))
+        def gaussian(dist,
+                     sigma_data,
+                     sigma_add, N_cell):
+            
+            sigma = np.sqrt((sigma_data ** 2) * (1 - 1/A_c) + (sigma_add ** 2)/N_cell)
 
+            return 1/(sigma * np.sqrt(2 * np.pi)) * np.exp(-((dist - np.mean(dist))**2)/ (2 * sigma ** 2))
+
+        sigmas_data = [0.2, 0.05]
+        sigmas_add = [0.9, 0.05]
 
         iteration_map = np.nditer(np.full(self.mapsize, 0), flags = ['multi_index'])
         for _ in iteration_map:
@@ -358,18 +364,26 @@ class SelfOrganizingMap:
                 if np.sum(labeled_map[iteration_map.multi_index][i]) == 0.:
                     continue
 
-                else:
-                    # A_c = np.diff(distribution[i], append = distribution[i][-1]) * 
+                else: 
                     A_c = np.sum(labeled_map[iteration_map.multi_index][i])
                     labeled_map[iteration_map.multi_index][i] /= A_c
 
-                    sigma = np.sqrt((1 - 1/A_c) * 0.2 ** 2 + 0.9 ** 2 / A_c)
                     convolved_distribution = np.convolve(labeled_map[iteration_map.multi_index][i],
-                                                         gaussian(distribution[i], sigma, A_c), mode = 'samae')
+                                                         gaussian(distribution[i],
+                                                                  sigmas_data[i], sigmas_add[i],
+                                                                  A_c), mode = 'same')
                     convolved_distribution /= np.sum(convolved_distribution)
 
-                    labeled_map[iteration_map.multi_index][i] = convolved_distribution[::-1]
+                    labeled_map[iteration_map.multi_index][i] = convolved_distribution
 
+        # finally, set empty cells to all-nans
+        iteration_map = np.nditer(np.full(self.mapsize, 0), flags = ['multi_index'])
+        for _ in iteration_map:
+            for i in range(self.labels_dim):
+                if np.sum(labeled_map[*iteration_map.multi_index][i]) == 0.:
+                    labeled_map[*iteration_map.multi_index][i] = np.full(pdr, np.nan)
+
+        self.distribution_xs = distribution
         self.labeled_map = labeled_map
 
     def show_map(self, show_labeled = False,
@@ -398,7 +412,8 @@ class SelfOrganizingMap:
             
             for i, name in enumerate(self.parameter_names):
                 ax = fig.add_subplot(1, self.labels_dim, i + 1)
-                imsh = ax.imshow(np.mean(self.labeled_map[..., i, :], axis = -1),
+                imsh = ax.imshow(np.sum(self.distribution_xs[i] * self.labeled_map[..., i, :],
+                                        axis = -1),
                                  origin = 'lower', cmap = cmap)
                 ax.axis('off')
                 fig.colorbar(mappable = imsh, ax = ax,
@@ -433,7 +448,7 @@ class SelfOrganizingMap:
             bmu_coords = find_bmu_coords(self.weights_map,
                                          self.prediction_input[index],
                                          unitary_covar_vector)
-            prediction_results[index] = self.labeled_map[*bmu_coords]
+            prediction_results[index] = np.sum(self.distribution_xs * self.labeled_map[*bmu_coords], axis = -1)
         
         self.prediction_results = prediction_results
         return prediction_results
@@ -517,3 +532,36 @@ class SelfOrganizingMap:
     #         if f'{index}' in labeling_data_bmu_idx.keys():
     #             local_vectors = self.labeling_data[labeling_data_bmu_idx[f'{index}']]
     #             self.labeled_map[*index] = np.nanmedian(local_vectors[:, self.data_dim:], axis = 0)
+
+    # def predict(self,
+    #             prediction_input):
+        
+    #     if len(np.shape(prediction_input)) == 2:
+    #         self.prediction_input = np.array(prediction_input)
+
+    #     elif (len(np.shape(prediction_input)) == 1) & (len(prediction_input) > 1):
+
+    #         tuple_input = prediction_input.as_array()
+    #         list_input = [list(values) for values in tuple_input]
+    #         self.prediction_input = np.array(list_input)
+            
+    #     else: raise(TypeError('Please pass the data as a 2-d array. Each object should be an n-dimensional vector. All objects should have the same dimension.'))
+
+    #     prediction_input_len, prediction_input_dim = np.shape(self.prediction_input)
+        
+    #     if prediction_input_dim != self.data_dim:
+    #         raise(AssertionError('The dimension of the prediction data does not match the dimension of the data used to train the SOM.'))
+
+    #     unitary_covar_vector = [1] * prediction_input_dim
+
+    #     prediction_results = np.full([prediction_input_len, self.labeling_data_dim - self.data_dim], np.nan)
+
+    #     for index in range(prediction_input_len):
+
+    #         bmu_coords = find_bmu_coords(self.weights_map,
+    #                                      self.prediction_input[index],
+    #                                      unitary_covar_vector)
+    #         prediction_results[index] = self.labeled_map[*bmu_coords]
+        
+    #     self.prediction_results = prediction_results
+    #     return prediction_results
