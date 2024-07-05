@@ -61,13 +61,13 @@ class SelfOrganizingMap:
 
         if learning_rate_function in ['power_law']:
             self.learning_rate_function = learning_rate_function
-        else: raise(TypeError('Please pass a learning rate function with learning_rate_function = "type". Types can be: "power_law".'))
+        else: raise(TypeError('PSOM.mapsizeease pass a learning rate function with learning_rate_function = "type". Types can be: "power_law".'))
 
         if neighborhood_function in ['gaussian']:
             self.neighborhood_function = neighborhood_function
         else: raise(TypeError('Please pass a neighborhood function with neighborhood_function = "type". Types can be: "gaussian".'))
 
-        if (termination == 'error_thresh') & (error_estimator in ['quantization_error', 'maximum_misalignment']):
+        if ((termination == 'maximum_steps') | (termination == 'either')) & (error_estimator in ['quantization_error', 'maximum_misalignment']):
             self.error_estimator = error_estimator
         elif termination == 'error_thresh':
             raise(TypeError('Please pass an error estimator with error_estimator = "type". Types can be: "mean_misalignment", "maximum_misalignment".'))
@@ -284,7 +284,8 @@ class SelfOrganizingMap:
 
             np.random.shuffle(self.randomized_data_indices)
 
-            for index in self.randomized_data_indices:
+            print(f'Step {self.step + 1} [{30 * " "}] 0/{self.data_len}', end = '\r')
+            for i, index in enumerate(self.randomized_data_indices):
                 weights, bmu_coords = training_step(weights,
                                                     complete_data[index],
                                                     complete_variance[index],
@@ -295,6 +296,9 @@ class SelfOrganizingMap:
                                                     (self.mapsize, self.kernel_spread, self.maximum_steps)
                                                     )
                 self.bmu_indices[index] = (bmu_coords)
+                # if i%int(self.data_len/5) == 0:
+                print(f'Step {self.step + 1} [{int(30 * i / self.data_len) * '*'}{(30 - int(30 * i / self.data_len)) * ' '}] {i}/{self.data_len}',
+                    end = '\r')
             
             self.weights_map = weights
             self.step += 1
@@ -311,7 +315,7 @@ class SelfOrganizingMap:
                 if self.termination == 'either': continue_training = False
                 elif self.termination == 'error_thresh': continue_training = False
             
-            print(f'Step {self.step} complete. Error: {self.error:.3f}')
+            print(f'Step {self.step} complete. Error: {self.error:.3f}                                   ')
             self.errors.append(self.error)
 
         print(f'SOM converged at step {self.step} to error {self.error}')
@@ -390,13 +394,16 @@ class SelfOrganizingMap:
         self.labeled_map = labeled_map
 
     def show_map(self, show_labeled = False,
-                 cmap = 'jet_r'):
+                 cmap = 'jet_r',
+                 save = False, save_path = None):
 
         if self.map_dimensionality != 2:
             raise(NotImplementedError('The module can only display 2-d maps for now.'))
 
         print(f'\n| SOM. Step {self.step}. Initialization: {self.initialization}')
 
+        if save_path == None:
+            save_path = './SOM_map'
 
         if not show_labeled:
 
@@ -422,6 +429,9 @@ class SelfOrganizingMap:
                 fig.colorbar(mappable = imsh, ax = ax,
                              label = name, location = 'bottom', pad = 0.01)
 
+        if save:
+            fig.savefig(save_path,
+                        bbox_inches = 'tight')
 
     def predict(self,
                 prediction_input):
@@ -468,8 +478,24 @@ class SelfOrganizingMap:
                      save_parameters = False):
         
         if save_weights:
-            np.savetxt(f'{directory_path}/SOM_weights')
-        
+            np.save(f'{directory_path}/SOM_weights', self.weights_map)
+
+        if save_parameters:
+            map_parameters = {}
+            map_parameters['name']                   = self.name                  
+            map_parameters['mapsize']                = self.mapsize            
+            map_parameters['initialization']         = self.initialization        
+            map_parameters['termination']            = self.termination           
+            map_parameters['learning_rate_function'] = self.learning_rate_function
+            map_parameters['neighborhood_function']  = self.neighborhood_function 
+            map_parameters['error_estimator']        = self.error_estimator       
+            map_parameters['learning_rate']          = self.learning_rate         
+            map_parameters['kernel_spread']          = self.kernel_spread         
+            map_parameters['maximum_steps']          = self.maximum_steps         
+            map_parameters['error_thresh']           = self.error_thresh          
+             
+            np.save(f'{directory_path}/SOM_params', map_parameters)    
+
     # def label_map(self,
     #               parameters,
     #               parameter_names = None):
