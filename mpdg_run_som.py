@@ -13,8 +13,8 @@ with fits.open(data_file) as cat:
     input_catalog_complete = Table(cat[1].data)
 
 #Select the needed data
-input_data = input_catalog_complete['gr_col', 'ug_col', 'ur_col']
-input_stds = input_catalog_complete['gr_col_err', 'ug_col_err', 'ur_col_err']
+input_data = input_catalog_complete['gr_col', 'ug_col']
+input_stds = input_catalog_complete['gr_col_err', 'ug_col_err']
 
 print(f'Len of input data: {len(input_data)}')
 
@@ -55,13 +55,13 @@ SOM = SelfOrganizingMap(
 
 print(SOM.error_estimator)
 
-data_cut = 67000 #use up to this much of the data (-1 for entire dataset)
+data_cut = 50000 #use up to this much of the data (-1 for entire dataset)
 randomized_idx = np.arange(0, len(input_data))
 np.random.shuffle(randomized_idx)
 randomized_idx = randomized_idx[:data_cut]
 
 SOM.load_data(input_data[randomized_idx],
-              variable_names = ['g-r', 'u-g', 'u-r'])
+              variable_names = ['g-r', 'u-g'])
 SOM.normalize_data()
 
 SOM.load_standard_deviations(input_stds[randomized_idx])
@@ -74,7 +74,7 @@ SOM.build_SOM()
 
 #Visualize SOM before training
 SOM.show_map(cmap = 'jet',
-             save = True, save_path = '/data2/lsajkov/mpdg/figures/big_SOM_pretraining')
+             save = True, save_path = '/data2/lsajkov/mpdg/figures/SOM_pretraining_08jul24')
 
 #Look at initial quantization error
 from mpdg_som_utils import SOM_ErrorEstimators
@@ -89,7 +89,7 @@ SOM.train()
 
 #Visualize the SOM after training
 SOM.show_map(cmap = 'jet',
-             save = True, save_path = '/data2/lsajkov/mpdg/figures/big_SOM_posttraining')
+             save = True, save_path = '/data2/lsajkov/mpdg/figures/SOM_posttraining_08jul24')
 
-SOM.save_outputs('/data2/lsajkov/mpdg/strw_mpdg/optimization_results/GAMA_SOM',
+SOM.save_outputs('/data2/lsajkov/mpdg/strw_mpdg/optimization_results/GAMA_SOM_08jul24',
                  save_weights = True, save_parameters = True)
