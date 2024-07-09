@@ -9,21 +9,25 @@ from mpdg_som import SelfOrganizingMap
 import optuna
 
 #load in data
-data_file = '/data2/lsajkov/mpdg/data_products/GAMA/GAMA_SOM_training_catalog_04Jul24.fits'
+data_file = '/data2/lsajkov/mpdg/data_products/GAMA/GAMA_SOM_training_catalog_08Jul24.fits'
 
 with fits.open(data_file) as cat:
     input_catalog_complete = Table(cat[1].data)
 
 #Select the needed data
-input_data = input_catalog_complete['gr_col', 'ug_col', 'ur_col']
-input_stds = input_catalog_complete['gr_col_err', 'ug_col_err', 'ur_col_err']
+input_data = input_catalog_complete['gr_col', 'ug_col', 'ri_col']
+input_stds = input_catalog_complete['gr_col_err', 'ug_col_err', 'ri_col_err']
 
-data_cut = int(len(input_data)/10)#use up to this much of the data (-1 uses entire dataset)
+input_labels = input_catalog_complete['gr_col', 'ug_col', 'ri_col', 'log_mstar', 'redshift']
+input_label_stds = input_catalog_complete['gr_col_err', 'ug_col_err', 'ri_col_err']
+
+data_cut = 30000 #int(len(input_data))#use up to this much of the data (-1 uses entire dataset)
 
 #pick a random subset of the data, as to avoid sampling bias
 randomized_idx = np.arange(0, len(input_data))
 np.random.shuffle(randomized_idx)
-randomized_idx = randomized_idx[:data_cut]
+randomized_data_idx = randomized_idx[:data_cut]
+randomized_label_idx = randomized_idx[data_cut:]
 
 #set SOM metaparameters
 name = 'mpdg_optuna'
@@ -69,9 +73,18 @@ def ObjectiveFunction(trial):
 
     SOM.build_SOM()
 
-    error = SOM.train()
+    SOM.train()
 
-    return error
+    SOM.load_labeling_data(input_labels[randomized_label_idx],
+                           parameter_names = ['log_mstar', 'redshift'])
+    SOM.normalize_labeling_data()
+
+    SOM.label_map()
+    SOM.predict(SOM.labeling_data[:, :3])
+
+    rms_error = np.sqrt(np.sum((SOM.labeling_data[:, 3:] - SOM.prediction_results) ** 2, axis = 0)/len(SOM.labeling_data))
+
+    return rms_error[0] + 5 * rms_error[1]
 
 import os
 from datetime import datetime
