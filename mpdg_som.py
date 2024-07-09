@@ -297,7 +297,7 @@ class SelfOrganizingMap:
                                                     )
                 self.bmu_indices[index] = (bmu_coords)
                 # if i%int(self.data_len/5) == 0:
-                print(f'Step {self.step + 1} [{int(30 * i / self.data_len) * '*'}{(30 - int(30 * i / self.data_len)) * ' '}] {i}/{self.data_len}',
+                print(f'Step {self.step + 1} [{int(30 * i / self.data_len) * "*"}{(30 - int(30 * i / self.data_len)) * " "}] {i}/{self.data_len}',
                     end = '\r')
             
             self.weights_map = weights
