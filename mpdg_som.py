@@ -116,8 +116,7 @@ class SelfOrganizingMap:
         elif variable_names == None:
             self.variable_names = [f'var{i}' for i in range(self.data_dim)]
 
-        self.initial_data_indices = np.arange(0, self.data_len, 1)
-        self.randomized_data_indices = np.arange(0, self.data_len, 1)
+        # self.randomized_data_indices = np.arange(0, self.data_len, 1)
         self.bmu_indices = np.full([self.data_len, self.map_dimensionality], 0, dtype = int)
 
 
@@ -275,7 +274,7 @@ class SelfOrganizingMap:
         
         weights = self.weights_map.copy()
         complete_data = self.data.copy()
-        complete_variance = self.variances.copy()
+        complete_variance = self.variances.copy() if self.use_covariance else np.ones_like(self.data)
 
         self.randomized_data_indices = np.arange(0, self.data_len)
         
@@ -296,27 +295,33 @@ class SelfOrganizingMap:
                                                     (self.mapsize, self.kernel_spread, self.maximum_steps)
                                                     )
                 self.bmu_indices[index] = (bmu_coords)
-                # if i%int(self.data_len/5) == 0:
                 print(f'Step {self.step + 1} [{int(30 * i / self.data_len) * "*"}{(30 - int(30 * i / self.data_len)) * " "}] {i}/{self.data_len}',
                     end = '\r')
             
             self.weights_map = weights
             self.step += 1
+
             error = e_est.quantization_error(weights,
                                              complete_data,
                                              self.bmu_indices)
+            self.errors.append(error)
             self.error = error
 
-            if self.step >= self.maximum_steps:
-                if self.termination == 'either': continue_training = False
-                elif self.termination == 'maximum_steps': continue_training = False
+            if self.step >= self.maximum_steps or self.error <= self.error_thresh:
+                if self.termination == 'either' or\
+                  (self.termination == 'maxium_steps' and self.step >= self.maximum_steps) or\
+                  (self.termination == 'error_thresh' and self.error <= self.error_thresh):
+                    continue_training = False
+
+            # if self.step >= self.maximum_steps:
+            #     if self.termination == 'either': continue_training = False
+            #     elif self.termination == 'maximum_steps': continue_training = False
             
-            if self.error <= self.error_thresh:
-                if self.termination == 'either': continue_training = False
-                elif self.termination == 'error_thresh': continue_training = False
+            # if self.error <= self.error_thresh:
+            #     if self.termination == 'either': continue_training = False
+            #     elif self.termination == 'error_thresh': continue_training = False
             
             print(f'Step {self.step} complete. Error: {self.error:.3f}                                   ')
-            self.errors.append(self.error)
 
         print(f'SOM converged at step {self.step} to error {self.error}')
         return error
