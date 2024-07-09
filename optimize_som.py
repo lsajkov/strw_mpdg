@@ -65,10 +65,10 @@ def ObjectiveFunction(trial):
         maximum_steps          = maximum_steps,
         error_thresh           = 0.05)
     
-    SOM.load_data(input_data[randomized_idx])
+    SOM.load_data(input_data[randomized_data_idx])
     SOM.normalize_data()
 
-    SOM.load_standard_deviations(input_stds[randomized_idx])
+    SOM.load_standard_deviations(input_stds[randomized_data_idx])
     SOM.normalize_standard_deviations()
 
     SOM.build_SOM()
@@ -84,6 +84,7 @@ def ObjectiveFunction(trial):
 
     rms_error = np.sqrt(np.sum((SOM.labeling_data[:, 3:] - SOM.prediction_results) ** 2, axis = 0)/len(SOM.labeling_data))
 
+    print(rms_error[0] + 5 * rms_error[1])
     return rms_error[0] + 5 * rms_error[1]
 
 import os
