@@ -327,18 +327,17 @@ class SelfOrganizingMap:
         return error
 
     def label_map(self,
-                  sigmas_data = None,
-                  sigmas_add = None,
-                  pdr = 1000,):
+                  sigmas_data: list = None,
+                  sigmas_add: list = None,
+                  pdr: int = 1000,):
         
         self.pdr = pdr
         #pdr = probability density resolution
 
         #initialize the labeled map as a probability distribution for each variable in each cell
-        #the complete map will have number of variables * number of cells probability distributions
+        #the complete map will have (number of variables * number of cells) probability distributions
         #the distributions are initialized with p(var|obs) = 0.0, where var is the given variable and obs is an observed value
-        labeled_map = np.full([*self.mapsize, self.labels_dim, pdr],
-                                0.0)
+        labeled_map = np.zeros([*self.mapsize, self.labels_dim, pdr])
 
         unitary_covar_vector = [1] * self.data_dim
 
@@ -366,8 +365,10 @@ class SelfOrganizingMap:
 
             return 1/(sigma * np.sqrt(2 * np.pi)) * np.exp(-((dist - np.mean(dist))**2)/ (2 * sigma ** 2))
 
-        if sigmas_data == None: sigmas_data = [0.2, 0.05]
-        if sigmas_add == None: sigmas_add = [0.9, 0.05]
+        sigmas_data = sigmas_data or [0.2, 0.05]
+        sigmas_add = sigmas_add or [0.9, 0.05]
+        # if sigmas_data == None: sigmas_data = [0.2, 0.05]
+        # if sigmas_add == None: sigmas_add = [0.9, 0.05]
 
         iteration_map = np.nditer(np.full(self.mapsize, 0), flags = ['multi_index'])
         for _ in iteration_map:
@@ -389,11 +390,11 @@ class SelfOrganizingMap:
                     labeled_map[iteration_map.multi_index][i] = convolved_distribution
 
         # finally, set empty cells to all-nans
-        iteration_map = np.nditer(np.full(self.mapsize, 0), flags = ['multi_index'])
-        for _ in iteration_map:
-            for i in range(self.labels_dim):
-                if np.sum(labeled_map[*iteration_map.multi_index][i]) == 0.:
-                    labeled_map[*iteration_map.multi_index][i] = np.full(pdr, np.nan)
+        # iteration_map = np.nditer(np.full(self.mapsize, 0), flags = ['multi_index'])
+        # for _ in iteration_map:
+        #     for i in range(self.labels_dim):
+        #         if np.sum(labeled_map[*iteration_map.multi_index][i]) == 0.:
+        #             labeled_map[*iteration_map.multi_index][i] = np.full(pdr, np.nan)
 
         self.distribution_xs = distribution
         self.labeled_map = labeled_map
