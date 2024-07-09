@@ -53,8 +53,6 @@ SOM = SelfOrganizingMap(
     error_thresh           = error_thresh
 )
 
-print(SOM.error_estimator)
-
 data_cut = 50000 #use up to this much of the data (-1 for entire dataset)
 randomized_idx = np.arange(0, len(input_data))
 np.random.shuffle(randomized_idx)
