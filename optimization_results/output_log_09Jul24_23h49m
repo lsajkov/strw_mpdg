@@ -1,2 +1,23 @@
 SOM Optuna optimization process. Started on 09Jul24 at 23h49m.
 trial	error	params
+0	0.895371	{'mapsize_len': 29, 'mapsize_wid': 56, 'learning_rate': 0.8932483506897335, 'kernel_spread': 8.89014426029875}
+1	0.910095	{'mapsize_len': 27, 'mapsize_wid': 60, 'learning_rate': 0.9763666408615493, 'kernel_spread': 10.025368615011677}
+2	0.869527	{'mapsize_len': 43, 'mapsize_wid': 40, 'learning_rate': 0.9410706268534659, 'kernel_spread': 16.444221878005553}
+3	1.005487	{'mapsize_len': 21, 'mapsize_wid': 20, 'learning_rate': 0.6004747685650245, 'kernel_spread': 16.13462101172236}
+4	0.939650	{'mapsize_len': 20, 'mapsize_wid': 31, 'learning_rate': 0.9166800776279933, 'kernel_spread': 7.058433410440201}
+5	0.887690	{'mapsize_len': 46, 'mapsize_wid': 50, 'learning_rate': 0.9121503634636612, 'kernel_spread': 1.8941982781111972}
+6	0.892560	{'mapsize_len': 56, 'mapsize_wid': 20, 'learning_rate': 0.5649606981655713, 'kernel_spread': 11.151281954732847}
+7	0.953889	{'mapsize_len': 26, 'mapsize_wid': 20, 'learning_rate': 0.7015384359934226, 'kernel_spread': 14.752135282729633}
+8	0.927045	{'mapsize_len': 25, 'mapsize_wid': 52, 'learning_rate': 0.6043184108691599, 'kernel_spread': 17.7275454994011}
+9	0.944716	{'mapsize_len': 28, 'mapsize_wid': 40, 'learning_rate': 0.6599463146358308, 'kernel_spread': 15.887227599251267}
+10	0.875406	{'mapsize_len': 40, 'mapsize_wid': 40, 'learning_rate': 0.7819728542339687, 'kernel_spread': 19.83457296996444}
+11	0.881131	{'mapsize_len': 41, 'mapsize_wid': 40, 'learning_rate': 0.7975063289565038, 'kernel_spread': 19.869067327894555}
+12	0.875256	{'mapsize_len': 49, 'mapsize_wid': 33, 'learning_rate': 0.7818104006446395, 'kernel_spread': 19.794998302103952}
+13	0.904649	{'mapsize_len': 52, 'mapsize_wid': 31, 'learning_rate': 0.8377366147673937, 'kernel_spread': 13.408530605384911}
+14	0.917365	{'mapsize_len': 47, 'mapsize_wid': 30, 'learning_rate': 0.5003648777526473, 'kernel_spread': 17.94439161339905}
+15	0.879612	{'mapsize_len': 60, 'mapsize_wid': 35, 'learning_rate': 0.9921051137559542, 'kernel_spread': 13.134703184860665}
+16	0.887634	{'mapsize_len': 36, 'mapsize_wid': 46, 'learning_rate': 0.7425181512732849, 'kernel_spread': 5.3792373757259435}
+17	0.893826	{'mapsize_len': 47, 'mapsize_wid': 26, 'learning_rate': 0.8412590649032501, 'kernel_spread': 18.23492817122824}
+18	0.883650	{'mapsize_len': 35, 'mapsize_wid': 45, 'learning_rate': 0.846600763835402, 'kernel_spread': 13.297867354881046}
+19	0.908258	{'mapsize_len': 51, 'mapsize_wid': 36, 'learning_rate': 0.713451877497183, 'kernel_spread': 16.869525873136723}
+20	0.915077	{'mapsize_len': 43, 'mapsize_wid': 26, 'learning_rate': 0.9589502249433761, 'kernel_spread': 19.660105489097408}
