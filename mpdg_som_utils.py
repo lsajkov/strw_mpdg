@@ -82,7 +82,7 @@ def training_step(weight_vectors,
     neighborhood_mult = np.stack([neighborhood_mult] * len(data_vector), axis = -1)
 
     updated_weight_vectors = current_weight_vectors +\
-                             learning_rate_mult * neighborhood_mult *\
+                             learning_rate_mult * np.transpose(neighborhood_mult) *\
                             (data_vector - current_weight_vectors)
 
     # data_vector_map = np.full(np.shape(current_weight_vectors),
