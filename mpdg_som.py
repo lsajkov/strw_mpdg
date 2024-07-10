@@ -200,13 +200,40 @@ class SelfOrganizingMap:
             normalizer = som_norm.ZeroMean_UnitVariance(self.variable_names)
         
         if self.normalization in ['unit_range', 'ur']:
-            normalizer = som_norm.UnitRange(self.variable_names)
-            
-        original_labeling_data = self.labeling_data.copy()
-        normalized_labeling_data = normalizer.normalize(original_labeling_data)
-        self.labeling_data = normalized_labeling_data
-        self.labeling_normalization_params = normalizer.normalization_params
+            for i, var in enumerate(self.normalization_params):
+                self.labeling_data[:, i] -= self.normalization_params[var]['min']
+                self.labeling_data[:, i] /= self.normalization_params[var]['max'] - self.normalization_params[var]['min']
 
+    def load_labeling_standard_deviations(self,
+                                          label_stds):
+
+        if len(np.shape(label_stds)) == 2:
+            array_label_stds = np.array(label_stds)
+            self.label_variances = array_label_stds**2
+
+        elif (len(np.shape(label_stds)) == 1) & (len(label_stds) > 1):
+
+            tuple_label_stds = label_stds.as_array()
+            list_label_stds = [list(values) for values in tuple_label_stds]
+            array_label_stds = np.array(list_label_stds)
+            self.label_variances = array_label_stds**2
+        
+        else: raise(TypeError('Please pass the data as a 2-d array. Each object should be an n-dimensional vector. All objects should have the same dimension.'))
+
+    def normalize_labeling_standard_deviations(self):
+
+        original_label_stds = np.sqrt(self.label_variances.copy())
+        normalized_label_stds = original_label_stds.copy()
+        if self.normalization in ['zero_mean_unit_variance', 'zmuv']:
+            for i, variable in enumerate(self.variable_names):
+                normalized_label_stds[:, i] -= self.normalization_params[variable]['mean']
+                normalized_label_stds[:, i] /= self.normalization_params[variable]['std']
+
+        if self.normalization in ['unit_range', 'ur']:
+            for i, variable in enumerate(self.variable_names):
+                normalized_label_stds[:, i] /= self.normalization_params[variable]['max'] - self.normalization_params[variable]['min']
+
+        self.label_variances = normalized_label_stds**2
 
     def data_statistics(self):
 
@@ -339,8 +366,6 @@ class SelfOrganizingMap:
         #the distributions are initialized with p(var|obs) = 0.0, where var is the given variable and obs is an observed value
         labeled_map = np.zeros([*self.mapsize, self.labels_dim, pdr])
 
-        unitary_covar_vector = [0.01] * self.data_dim
-
         #create the viable distribution space. This is essentially the integration bounds where var can be non-zero
         distribution = np.array([np.linspace(np.min(self.labeling_data[:, i]), np.max(self.labeling_data[:, i]), pdr)\
                                 for i in range(self.data_dim, self.labeling_data_dim)])
@@ -351,8 +376,8 @@ class SelfOrganizingMap:
 
             bmu_coords = find_bmu_coords(self.weights_map,
                                          self.labeling_data[index, :self.data_dim],
-                                         unitary_covar_vector)
-            
+                                         self.label_variances[index, :self.data_dim])
+
             for i in range(self.labels_dim):
                 delta_index = np.abs(distribution[i] - self.labeling_data[index, self.data_dim + i]).argmin()
                 labeled_map[*bmu_coords, i, delta_index] += 1
@@ -365,8 +390,8 @@ class SelfOrganizingMap:
 
             return 1/(sigma * np.sqrt(2 * np.pi)) * np.exp(-((dist - np.mean(dist))**2)/ (2 * sigma ** 2))
 
-        sigmas_data = sigmas_data or [0.2, 0.05]
-        sigmas_add = sigmas_add or [0.9, 0.05]
+        sigmas_data = sigmas_data or [0.1, 0.05]
+        sigmas_add = sigmas_add or [0, 0]
         # if sigmas_data == None: sigmas_data = [0.2, 0.05]
         # if sigmas_add == None: sigmas_add = [0.9, 0.05]
 
@@ -374,29 +399,29 @@ class SelfOrganizingMap:
         for _ in iteration_map:
             for i in range(self.labels_dim):
                 
-                if np.sum(labeled_map[iteration_map.multi_index][i]) == 0.:
-                    continue
+                A_c = np.sum(labeled_map[iteration_map.multi_index][i])
+                labeled_map[iteration_map.multi_index][i] /= A_c
 
-                else: 
-                    A_c = np.sum(labeled_map[iteration_map.multi_index][i])
-                    labeled_map[iteration_map.multi_index][i] /= A_c
+                convolved_distribution = np.convolve(labeled_map[iteration_map.multi_index][i],
+                                                        gaussian(distribution[i],
+                                                                sigmas_data[i], sigmas_add[i],
+                                                                A_c), mode = 'same')
+                convolved_distribution /= np.sum(convolved_distribution)
 
-                    convolved_distribution = np.convolve(labeled_map[iteration_map.multi_index][i],
-                                                         gaussian(distribution[i],
-                                                                  sigmas_data[i], sigmas_add[i],
-                                                                  A_c), mode = 'same')
-                    convolved_distribution /= np.sum(convolved_distribution)
+                labeled_map[iteration_map.multi_index][i] = convolved_distribution
+                # if np.sum(labeled_map[iteration_map.multi_index][i]) == 0.:
+                #     continue
 
-                    labeled_map[iteration_map.multi_index][i] = convolved_distribution
+                # else: 
 
         # finally, set empty cells to all-nans
         # for i in range(self.labels_dim):
         #     empty_cells = 
-        iteration_map = np.nditer(np.full(self.mapsize, 0), flags = ['multi_index'])
-        for _ in iteration_map:
-            for i in range(self.labels_dim):
-                if np.sum(labeled_map[*iteration_map.multi_index][i]) == 0.:
-                    labeled_map[*iteration_map.multi_index][i] = np.full(pdr, np.nan)
+        # iteration_map = np.nditer(np.full(self.mapsize, 0), flags = ['multi_index'])
+        # for _ in iteration_map:
+        #     for i in range(self.labels_dim):
+        #         if np.sum(labeled_map[*iteration_map.multi_index][i]) == 0.:
+        #             labeled_map[*iteration_map.multi_index][i] = np.full(pdr, np.nan)
 
         self.distribution_xs = distribution
         self.labeled_map = labeled_map
@@ -445,6 +470,8 @@ class SelfOrganizingMap:
                 prediction_input,
                 prediction_stds = None):
         
+        self.prediction_stds = prediction_stds
+        
         if len(np.shape(prediction_input)) == 2:
             self.prediction_input = np.array(prediction_input)
 
@@ -470,8 +497,7 @@ class SelfOrganizingMap:
 
             bmu_coords = find_bmu_coords(self.weights_map,
                                          self.prediction_input[index],
-                                         unitary_covar_vector)
-                                            #    prediction_stds[index])
+                                         self.prediction_stds[index])
             prediction_results[index] = np.sum(self.distribution_xs * self.labeled_map[*bmu_coords], axis = -1)
 
             prediction_sigmas[index] = np.sqrt(np.sum(self.distribution_xs ** 2 * self.labeled_map[*bmu_coords], axis = -1) -\

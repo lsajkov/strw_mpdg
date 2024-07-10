@@ -81,12 +81,16 @@ def training_step(weight_vectors,
                                               *nbh_args)
     neighborhood_mult = np.stack([neighborhood_mult] * len(data_vector), axis = -1)
 
-    data_vector_map = np.full(np.shape(current_weight_vectors),
-                              data_vector)
-
     updated_weight_vectors = current_weight_vectors +\
                              learning_rate_mult * neighborhood_mult *\
-                            (data_vector_map - current_weight_vectors)
+                            (data_vector - current_weight_vectors)
+
+    # data_vector_map = np.full(np.shape(current_weight_vectors),
+    #                           data_vector)
+
+    # updated_weight_vectors = current_weight_vectors +\
+    #                          learning_rate_mult * neighborhood_mult *\
+    #                         (data_vector_map - current_weight_vectors)
     
     return updated_weight_vectors, bmu_coords
 
@@ -104,17 +108,33 @@ class SOM_NeighborhoodFunctions:
                      init_kernel_spread,
                      maximum_steps):
         
-        euclidean_distance_map = np.full(mapsize, np.nan)
-        iteration_map = np.nditer(euclidean_distance_map, flags = ['multi_index'])
-
-        for _ in iteration_map:
-            euclidean_distance = np.linalg.norm(np.array(mean_coordinates) -\
-                                                np.array(iteration_map.multi_index))
-            euclidean_distance_map[*iteration_map.multi_index] = euclidean_distance
+        linear_nd_space = np.meshgrid(*[np.arange(0, axis) for axis in mapsize])
+        
+        euclidean_distance_map = np.array([np.abs(linear_nd_space[i] - mean_coordinates[i])\
+                                           for i in range(len(mapsize))])
+        euclidean_distance_map = np.sum(euclidean_distance_map**2, axis = 0)
 
         kernel_spread = init_kernel_spread ** (1 - (step/maximum_steps))
 
-        return np.exp(-(euclidean_distance_map**2)/(kernel_spread**2))
+        return np.exp(-(euclidean_distance_map)/(kernel_spread**2))
+
+    # def gaussian_nbh(step,
+    #                  mean_coordinates,
+    #                  mapsize,
+    #                  init_kernel_spread,
+    #                  maximum_steps):
+        
+    #     euclidean_distance_map = np.full(mapsize, np.nan)
+    #     iteration_map = np.nditer(euclidean_distance_map, flags = ['multi_index'])
+
+    #     for _ in iteration_map:
+    #         euclidean_distance = np.linalg.norm(np.array(mean_coordinates) -\
+    #                                             np.array(iteration_map.multi_index))
+    #         euclidean_distance_map[*iteration_map.multi_index] = euclidean_distance
+
+    #     kernel_spread = init_kernel_spread ** (1 - (step/maximum_steps))
+
+    #     return np.exp(-(euclidean_distance_map**2)/(kernel_spread**2))
     
 class SOM_ErrorEstimators:
 
