@@ -500,11 +500,11 @@ class SelfOrganizingMap:
                                          self.prediction_stds[index])
             prediction_results[index] = np.sum(self.distribution_xs * self.labeled_map[*bmu_coords], axis = -1)
 
-            prediction_sigmas[index] = np.sqrt(np.sum(self.distribution_xs ** 2 * self.labeled_map[*bmu_coords], axis = -1) -\
-                                               np.sum(self.distribution_xs * self.labeled_map[*bmu_coords], axis = -1))
+            # prediction_sigmas[index] = np.sqrt(np.sum(self.distribution_xs ** 2 * self.labeled_map[*bmu_coords], axis = -1) -\
+            #                                    np.sum(self.distribution_xs * self.labeled_map[*bmu_coords], axis = -1))
         
         self.prediction_results = prediction_results
-        self.prediction_sigmas  = prediction_sigmas
+        # self.prediction_sigmas  = prediction_sigmas
         # return prediction_results
 
     def save_outputs(self,

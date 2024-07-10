@@ -28,7 +28,7 @@ tuple_labels = input_labels.as_array()
 list_labels  = [list(values) for values in tuple_labels]
 input_labels = np.array(list_labels)
 
-data_cut = 300 #use up to this much of the data (-1 uses entire dataset)
+data_cut = 30000 #use up to this much of the data (-1 uses entire dataset)
 
 #pick a random subset of the data, as to avoid sampling bias
 randomized_idx = np.arange(0, len(input_data))
@@ -82,9 +82,6 @@ def ObjectiveFunction(trial):
     SOM.build_SOM()
 
     SOM.train()
-    
-    SOM.show_map(cmap = 'jet',
-                 save = True, save_path = '/data2/lsajkov/mpdg/saved_soms/trained_SOM.png')
 
     SOM.load_labeling_data(input_labels[randomized_label_idx],
                            parameter_names = ['log_mstar', 'redshift'])
@@ -93,18 +90,16 @@ def ObjectiveFunction(trial):
     SOM.load_labeling_standard_deviations(input_stds[randomized_label_idx])
     SOM.normalize_labeling_standard_deviations()
 
-    SOM.show_map(show_labeled = True,
-                 cmap = 'jet',
-                 save = True, save_path = '/data2/lsajkov/mpdg/saved_soms/labeled_SOM.png')
-
     SOM.label_map(pdr = 500)
-
+    
     SOM.predict(SOM.labeling_data[:, :4],
     SOM.label_variances[:, :4])
 
-    rms_error = np.sqrt(np.sum(SOM.labeling_data[:, 3:] ** 2)/len(SOM.labeling_data))
-
-    print(rms_error)
+    rms_error = np.sqrt(np.nansum((SOM.labeling_data[:, SOM.data_dim + 1] - SOM.prediction_results[:, 1])**2)/len(SOM.labeling_data))
+    
+    if np.isnan(rms_error):
+        rms_error = 99
+    
     return rms_error
 
 import os
@@ -114,7 +109,7 @@ todays_date = datetime.today().strftime('%d%b%y')
 start_time  = datetime.today().strftime('%Hh%Mm')
 study_name  = f'SOM_optuna_{todays_date}'
 
-n_trials = 25
+n_trials = 50
 
 log_file = f'/data2/lsajkov/mpdg/strw_mpdg/optimization_results/output_log_{todays_date}_{start_time}'
 with open(log_file, 'w') as log:
@@ -127,8 +122,6 @@ if not os.path.exists(f'/data2/lsajkov/mpdg/saved_soms/{todays_date}_{start_time
 def create_trial_directory(study, frozen_trial):
 
     ft = frozen_trial
-
-    global directory_path
     directory_path = f'/data2/lsajkov/mpdg/saved_soms/{todays_date}_{start_time}/trial{ft.number}'
 
     if not os.path.exists(directory_path):
@@ -143,15 +136,23 @@ def write_to_log(study, frozen_trial):
 def save_map(study, frozen_trial):
 
     ft = frozen_trial
-    save_map_file = f'{directory_path}/weights'
 
-    np.save(save_map_file, SOM.weights_map)
+    save_map_path = f'/data2/lsajkov/mpdg/saved_soms/{todays_date}_{start_time}/trial{ft.number}/'
+    np.save(f'{save_map_path}/weights', SOM.weights_map)
+
+    SOM.show_map(cmap = 'jet',
+                 save = True, save_path = f'{save_map_path}/trained_SOM')
+    
+    SOM.show_map(show_labeled = True,
+                 cmap = 'jet',
+                 save = True, save_path = f'{save_map_path}/labeled_SOM')
 
 def save_plots(study, frozen_trial):
 
     ft = frozen_trial
+    plot_path = f'/data2/lsajkov/mpdg/saved_soms/{todays_date}_{start_time}/trial{ft.number}/comparison_plot.png'
 
-    fig = plt.figure(figsize = (20, 12))
+    fig = plt.figure(figsize = (26, 12))
     ax1 = fig.add_subplot(121)
     hxb1 = ax1.hexbin(SOM.labeling_data[:, SOM.data_dim],
                       SOM.prediction_results[:, 0],
@@ -185,7 +186,7 @@ def save_plots(study, frozen_trial):
                  location = 'top', pad = 0.01,
                  label = '$N_{\mathrm{galaxies}}$')
     
-    fig.savefig(f'{directory_path}/comparison_plot.png', bbox_inches = 'tight')
+    fig.savefig(plot_path, bbox_inches = 'tight')
 
 study = optuna.create_study(study_name = study_name,
                             direction  = 'minimize')
@@ -193,6 +194,7 @@ study.optimize(ObjectiveFunction,
                n_trials  = n_trials,
                callbacks = [create_trial_directory,
                             write_to_log,
+                            save_map,
                             save_plots])
 
 with open(log_file, 'a') as log:

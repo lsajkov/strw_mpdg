@@ -79,7 +79,7 @@ def training_step(weight_vectors,
 
     neighborhood_mult = neighborhood_function(step, bmu_coords,
                                               *nbh_args)
-    neighborhood_mult = np.stack([neighborhood_mult] * len(data_vector), axis = -1)
+    neighborhood_mult = np.stack([neighborhood_mult] * len(data_vector), axis = 0)
 
     updated_weight_vectors = current_weight_vectors +\
                              learning_rate_mult * np.transpose(neighborhood_mult) *\
