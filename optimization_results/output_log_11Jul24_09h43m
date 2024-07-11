@@ -40,3 +40,15 @@ trial	error	params
 37	0.042931	{'mapsize_len': 55, 'mapsize_wid': 58, 'learning_rate': 0.7502848074311878, 'kernel_spread': 0.5619259607204141}
 38	0.044761	{'mapsize_len': 41, 'mapsize_wid': 48, 'learning_rate': 0.6544053621647625, 'kernel_spread': 5.407194272704362}
 39	0.042950	{'mapsize_len': 60, 'mapsize_wid': 42, 'learning_rate': 0.5150595811401711, 'kernel_spread': 1.8228829543875291}
+40	0.042749	{'mapsize_len': 53, 'mapsize_wid': 51, 'learning_rate': 0.1859126937689029, 'kernel_spread': 19.66395899137885}
+41	0.041404	{'mapsize_len': 58, 'mapsize_wid': 58, 'learning_rate': 0.5714531002753586, 'kernel_spread': 3.784370463849789}
+42	0.040939	{'mapsize_len': 58, 'mapsize_wid': 60, 'learning_rate': 0.6380202226444459, 'kernel_spread': 3.344928658722427}
+43	0.044433	{'mapsize_len': 35, 'mapsize_wid': 60, 'learning_rate': 0.4604243963001964, 'kernel_spread': 3.691822216950605}
+44	0.041493	{'mapsize_len': 59, 'mapsize_wid': 59, 'learning_rate': 0.7464294464318906, 'kernel_spread': 11.361792024367446}
+45	0.041863	{'mapsize_len': 54, 'mapsize_wid': 59, 'learning_rate': 0.7525591368509822, 'kernel_spread': 12.49536922674748}
+46	0.045724	{'mapsize_len': 28, 'mapsize_wid': 60, 'learning_rate': 0.5426303461679407, 'kernel_spread': 11.26159258042778}
+47	0.041296	{'mapsize_len': 59, 'mapsize_wid': 58, 'learning_rate': 0.6655310928874465, 'kernel_spread': 15.582925610897538}
+48	0.042049	{'mapsize_len': 55, 'mapsize_wid': 58, 'learning_rate': 0.6489390310515061, 'kernel_spread': 16.483032543821743}
+49	0.043190	{'mapsize_len': 52, 'mapsize_wid': 53, 'learning_rate': 0.7179981844244352, 'kernel_spread': 17.112180829472045}
+best trial:
+42	0.041	{'mapsize_len': 58, 'mapsize_wid': 60, 'learning_rate': 0.6380202226444459, 'kernel_spread': 3.344928658722427}
