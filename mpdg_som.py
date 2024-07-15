@@ -303,10 +303,17 @@ class SelfOrganizingMap:
         complete_data = self.data.copy()
         complete_variance = self.variances.copy() if self.use_covariance else np.ones_like(self.data)
 
+        indexed_map = np.empty(self.mapsize,
+                               dtype = object)
+
         self.randomized_data_indices = np.arange(0, self.data_len)
         
         continue_training = True
         while continue_training: 
+
+            for index, _ in np.ndenumerate(indexed_map):
+                indexed_map[index] = []
+            self.indexed_map = indexed_map
 
             np.random.shuffle(self.randomized_data_indices)
 
@@ -322,6 +329,7 @@ class SelfOrganizingMap:
                                                     (self.mapsize, self.kernel_spread, self.maximum_steps)
                                                     )
                 self.bmu_indices[index] = (bmu_coords)
+                self.indexed_map[bmu_coords].append(index)
                 print(f'Step {self.step + 1} [{int(30 * i / self.data_len) * "*"}{(30 - int(30 * i / self.data_len)) * " "}] {i}/{self.data_len}',
                     end = '\r')
             
@@ -353,77 +361,35 @@ class SelfOrganizingMap:
         print(f'SOM converged at step {self.step} to error {self.error}')
         return error
 
-    def label_map(self,
-                  sigmas_data: list = None,
-                  sigmas_add: list = None,
-                  pdr: int = 1000,):
+    def label_map(self):
         
-        self.pdr = pdr
-        #pdr = probability density resolution
+        labeled_map_values = np.empty([*self.mapsize, self.labels_dim, 2],
+                                    dtype = object)
+        for index, _ in np.ndenumerate(labeled_map_values):
+            labeled_map_values[index] = []
 
-        #initialize the labeled map as a probability distribution for each variable in each cell
-        #the complete map will have (number of variables * number of cells) probability distributions
-        #the distributions are initialized with p(var|obs) = 0.0, where var is the given variable and obs is an observed value
-        labeled_map = np.zeros([*self.mapsize, self.labels_dim, pdr])
-
-        #create the viable distribution space. This is essentially the integration bounds where var can be non-zero
-        distribution = np.array([np.linspace(np.min(self.labeling_data[:, i]), np.max(self.labeling_data[:, i]), pdr)\
-                                for i in range(self.data_dim, self.labeling_data_dim)])
-
-        #in each probability distribution, add a delta function centered at the
-        #observed value of the variable
         for index in range(self.labeling_data_len):
 
             bmu_coords = find_bmu_coords(self.weights_map,
-                                         self.labeling_data[index, :self.data_dim],
-                                         self.label_variances[index, :self.data_dim])
+                                        self.labeling_data[index, :self.data_dim],
+                                        self.label_variances[index, :self.data_dim])
 
             for i in range(self.labels_dim):
-                delta_index = np.abs(distribution[i] - self.labeling_data[index, self.data_dim + i]).argmin()
-                labeled_map[*bmu_coords, i, delta_index] += 1
+                labeled_map_values[*bmu_coords, i, 0].append(self.labeling_data[index, self.data_dim + i])
+                labeled_map_values[*bmu_coords, i, 1].append(self.label_variances[index,  self.data_dim + i]) 
 
-        def gaussian(dist,
-                     sigma_data,
-                     sigma_add, N_cell):
-            
-            sigma = np.sqrt((sigma_data ** 2) * (1 - 1/A_c) + (sigma_add ** 2)/N_cell)
+        labeled_map = np.empty([*self.mapsize, self.labels_dim, 2])
 
-            return 1/(sigma * np.sqrt(2 * np.pi)) * np.exp(-((dist - np.mean(dist))**2)/ (2 * sigma ** 2))
+        for i in range(self.labels_dim):
+            for cell, _ in np.ndenumerate(labeled_map[..., 0, 0]):
+                if len(labeled_map_values[*cell, i, 0]) > 0:
+                    mean, insqvar = np.average(labeled_map_values[*cell, i, 0],
+                                                weights = 1/np.array(labeled_map_values[*cell, i, 1])**2,
+                                                returned = True)
+                    labeled_map[*cell, i, 0] = mean
+                    labeled_map[*cell, i, 1] = np.sqrt(1/insqvar)
+                else: labeled_map[*cell, i] = [np.nan, np.nan]
 
-        sigmas_data = sigmas_data or [0.1, 0.05]
-        sigmas_add = sigmas_add or [0, 0]
-        # if sigmas_data == None: sigmas_data = [0.2, 0.05]
-        # if sigmas_add == None: sigmas_add = [0.9, 0.05]
-
-        iteration_map = np.nditer(np.full(self.mapsize, 0), flags = ['multi_index'])
-        for _ in iteration_map:
-            for i in range(self.labels_dim):
-                
-                A_c = np.sum(labeled_map[iteration_map.multi_index][i])
-                labeled_map[iteration_map.multi_index][i] /= A_c
-
-                convolved_distribution = np.convolve(labeled_map[iteration_map.multi_index][i],
-                                                        gaussian(distribution[i],
-                                                                sigmas_data[i], sigmas_add[i],
-                                                                A_c), mode = 'same')
-                convolved_distribution /= np.sum(convolved_distribution)
-
-                labeled_map[iteration_map.multi_index][i] = convolved_distribution
-                # if np.sum(labeled_map[iteration_map.multi_index][i]) == 0.:
-                #     continue
-
-                # else: 
-
-        # finally, set empty cells to all-nans
-        # for i in range(self.labels_dim):
-        #     empty_cells = 
-        # iteration_map = np.nditer(np.full(self.mapsize, 0), flags = ['multi_index'])
-        # for _ in iteration_map:
-        #     for i in range(self.labels_dim):
-        #         if np.sum(labeled_map[*iteration_map.multi_index][i]) == 0.:
-        #             labeled_map[*iteration_map.multi_index][i] = np.full(pdr, np.nan)
-
-        self.distribution_xs = distribution
         self.labeled_map = labeled_map
 
     def show_map(self, show_labeled = False,
@@ -455,9 +421,11 @@ class SelfOrganizingMap:
             
             for i, name in enumerate(self.parameter_names):
                 ax = fig.add_subplot(1, self.labels_dim, i + 1)
-                imsh = ax.imshow(np.sum(self.distribution_xs[i] * self.labeled_map[..., i, :],
-                                        axis = -1),
+                imsh = ax.imshow(self.labeled_map[..., i, 0],
                                  origin = 'lower', cmap = cmap)
+                # imsh = ax.imshow(np.sum(self.distribution_xs[i] * self.labeled_map[..., i, :],
+                #                         axis = -1),
+                #                  origin = 'lower', cmap = cmap)
                 ax.axis('off')
                 fig.colorbar(mappable = imsh, ax = ax,
                              label = name, location = 'bottom', pad = 0.01)
@@ -488,8 +456,6 @@ class SelfOrganizingMap:
         if prediction_input_dim != self.data_dim:
             raise(AssertionError('The dimension of the prediction data does not match the dimension of the data used to train the SOM.'))
 
-        unitary_covar_vector = [0.01] * prediction_input_dim
-
         prediction_results = np.full([prediction_input_len, self.labeling_data_dim - self.data_dim], np.nan)
         prediction_sigmas  = np.full([prediction_input_len, self.labeling_data_dim - self.data_dim], np.nan)
 
@@ -498,14 +464,12 @@ class SelfOrganizingMap:
             bmu_coords = find_bmu_coords(self.weights_map,
                                          self.prediction_input[index],
                                          self.prediction_stds[index])
-            prediction_results[index] = np.sum(self.distribution_xs * self.labeled_map[*bmu_coords], axis = -1)
+            prediction_results[index] = self.labeled_map[*bmu_coords, :, 0]
+            prediction_sigmas[index]  = self.labeled_map[*bmu_coords, :, 1]
 
-            # prediction_sigmas[index] = np.sqrt(np.sum(self.distribution_xs ** 2 * self.labeled_map[*bmu_coords], axis = -1) -\
-            #                                    np.sum(self.distribution_xs * self.labeled_map[*bmu_coords], axis = -1))
-        
         self.prediction_results = prediction_results
-        # self.prediction_sigmas  = prediction_sigmas
-        # return prediction_results
+        self.prediction_sigmas  = prediction_sigmas
+
 
     def save_outputs(self,
                      directory_path,
@@ -530,7 +494,120 @@ class SelfOrganizingMap:
             map_parameters['maximum_steps']          = self.maximum_steps         
             map_parameters['error_thresh']           = self.error_thresh          
              
-            np.save(f'{directory_path}/SOM_params', map_parameters)    
+            np.save(f'{directory_path}/SOM_params', map_parameters)
+
+    # def label_map(self,
+    #               sigmas_data: list = None,
+    #               sigmas_add: list = None,
+    #               pdr: int = 1000,):
+        
+    #     self.pdr = pdr
+    #     #pdr = probability density resolution
+
+    #     #initialize the labeled map as a probability distribution for each variable in each cell
+    #     #the complete map will have (number of variables * number of cells) probability distributions
+    #     #the distributions are initialized with p(var|obs) = 0.0, where var is the given variable and obs is an observed value
+    #     labeled_map = np.zeros([*self.mapsize, self.labels_dim, pdr])
+
+    #     #create the viable distribution space. This is essentially the integration bounds where var can be non-zero
+    #     distribution = np.array([np.linspace(np.min(self.labeling_data[:, i]), np.max(self.labeling_data[:, i]), pdr)\
+    #                             for i in range(self.data_dim, self.labeling_data_dim)])
+
+    #     #in each probability distribution, add a delta function centered at the
+    #     #observed value of the variable
+    #     for index in range(self.labeling_data_len):
+
+    #         bmu_coords = find_bmu_coords(self.weights_map,
+    #                                      self.labeling_data[index, :self.data_dim],
+    #                                      self.label_variances[index, :self.data_dim])
+
+    #         for i in range(self.labels_dim):
+    #             delta_index = np.abs(distribution[i] - self.labeling_data[index, self.data_dim + i]).argmin()
+    #             labeled_map[*bmu_coords, i, delta_index] += 1
+
+    #     def gaussian(dist,
+    #                  sigma_data,
+    #                  sigma_add, N_cell):
+            
+    #         sigma = np.sqrt((sigma_data ** 2) * (1 - 1/A_c) + (sigma_add ** 2)/N_cell)
+
+    #         return 1/(sigma * np.sqrt(2 * np.pi)) * np.exp(-((dist - np.mean(dist))**2)/ (2 * sigma ** 2))
+
+    #     sigmas_data = sigmas_data or [0.1, 0.05]
+    #     sigmas_add = sigmas_add or [0, 0]
+    #     # if sigmas_data == None: sigmas_data = [0.2, 0.05]
+    #     # if sigmas_add == None: sigmas_add = [0.9, 0.05]
+
+    #     iteration_map = np.nditer(np.full(self.mapsize, 0), flags = ['multi_index'])
+    #     for _ in iteration_map:
+    #         for i in range(self.labels_dim):
+                
+    #             A_c = np.sum(labeled_map[iteration_map.multi_index][i])
+    #             labeled_map[iteration_map.multi_index][i] /= A_c
+
+    #             convolved_distribution = np.convolve(labeled_map[iteration_map.multi_index][i],
+    #                                                     gaussian(distribution[i],
+    #                                                             sigmas_data[i], sigmas_add[i],
+    #                                                             A_c), mode = 'same')
+    #             convolved_distribution /= np.sum(convolved_distribution)
+
+    #             labeled_map[iteration_map.multi_index][i] = convolved_distribution
+    #             # if np.sum(labeled_map[iteration_map.multi_index][i]) == 0.:
+    #             #     continue
+
+    #             # else: 
+
+    #     # finally, set empty cells to all-nans
+    #     # for i in range(self.labels_dim):
+    #     #     empty_cells = 
+    #     # iteration_map = np.nditer(np.full(self.mapsize, 0), flags = ['multi_index'])
+    #     # for _ in iteration_map:
+    #     #     for i in range(self.labels_dim):
+    #     #         if np.sum(labeled_map[*iteration_map.multi_index][i]) == 0.:
+    #     #             labeled_map[*iteration_map.multi_index][i] = np.full(pdr, np.nan)
+
+    #     self.distribution_xs = distribution
+    #     self.labeled_map = labeled_map
+
+    # def show_map(self, show_labeled = False,
+    #              cmap = 'jet_r',
+    #              save = False, save_path = None):
+
+    #     if self.map_dimensionality != 2:
+    #         raise(NotImplementedError('The module can only display 2-d maps for now.'))
+
+    #     print(f'\n| SOM. Step {self.step}. Initialization: {self.initialization}')
+
+    #     if save_path == None:
+    #         save_path = './SOM_map'
+
+    #     if not show_labeled:
+
+    #         fig = plt.figure(figsize = (self.data_dim * 5, 10), constrained_layout = True)
+            
+    #         for i, name in enumerate(self.variable_names):
+    #             ax = fig.add_subplot(1, self.data_dim, i + 1)
+    #             imsh = ax.imshow(self.weights_map[..., i], origin = 'lower', cmap = cmap)
+    #             ax.axis('off')
+    #             fig.colorbar(mappable = imsh, ax = ax,
+    #                         label = name, location = 'bottom', pad = 0.01)
+
+    #     if show_labeled:
+
+    #         fig = plt.figure(figsize = (self.labels_dim * 5, 10), constrained_layout = True)
+            
+    #         for i, name in enumerate(self.parameter_names):
+    #             ax = fig.add_subplot(1, self.labels_dim, i + 1)
+    #             imsh = ax.imshow(np.sum(self.distribution_xs[i] * self.labeled_map[..., i, :],
+    #                                     axis = -1),
+    #                              origin = 'lower', cmap = cmap)
+    #             ax.axis('off')
+    #             fig.colorbar(mappable = imsh, ax = ax,
+    #                          label = name, location = 'bottom', pad = 0.01)
+
+    #     if save:
+    #         fig.savefig(save_path,
+    #                     bbox_inches = 'tight')
 
     # def label_map(self,
     #               parameters,
@@ -567,6 +644,47 @@ class SelfOrganizingMap:
 
     #         matching_idx = np.all(self.bmu_indices == cell, axis = -1)
     #         self.map_labels[*cell] = np.median(self.parameters[matching_idx], axis = 0)
+
+    # def predict(self,
+    #             prediction_input,
+    #             prediction_stds = None):
+        
+    #     self.prediction_stds = prediction_stds
+        
+    #     if len(np.shape(prediction_input)) == 2:
+    #         self.prediction_input = np.array(prediction_input)
+
+    #     elif (len(np.shape(prediction_input)) == 1) & (len(prediction_input) > 1):
+
+    #         tuple_input = prediction_input.as_array()
+    #         list_input = [list(values) for values in tuple_input]
+    #         self.prediction_input = np.array(list_input)
+            
+    #     else: raise(TypeError('Please pass the data as a 2-d array. Each object should be an n-dimensional vector. All objects should have the same dimension.'))
+
+    #     prediction_input_len, prediction_input_dim = np.shape(self.prediction_input)
+        
+    #     if prediction_input_dim != self.data_dim:
+    #         raise(AssertionError('The dimension of the prediction data does not match the dimension of the data used to train the SOM.'))
+
+    #     unitary_covar_vector = [0.01] * prediction_input_dim
+
+    #     prediction_results = np.full([prediction_input_len, self.labeling_data_dim - self.data_dim], np.nan)
+    #     prediction_sigmas  = np.full([prediction_input_len, self.labeling_data_dim - self.data_dim], np.nan)
+
+    #     for index in range(prediction_input_len):
+
+    #         bmu_coords = find_bmu_coords(self.weights_map,
+    #                                      self.prediction_input[index],
+    #                                      self.prediction_stds[index])
+    #         prediction_results[index] = np.sum(self.distribution_xs * self.labeled_map[*bmu_coords], axis = -1)
+
+    #         # prediction_sigmas[index] = np.sqrt(np.sum(self.distribution_xs ** 2 * self.labeled_map[*bmu_coords], axis = -1) -\
+    #         #                                    np.sum(self.distribution_xs * self.labeled_map[*bmu_coords], axis = -1))
+        
+    #     self.prediction_results = prediction_results
+    #     # self.prediction_sigmas  = prediction_sigmas
+    #     # return prediction_results
 
     # def label_map(self):
 
