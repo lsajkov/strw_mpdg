@@ -388,8 +388,6 @@ class SelfOrganizingMap:
             bmu_coords = find_bmu_coords(self.weights_map,
                                         self.labeling_data[index, :self.data_dim],
                                         self.label_variances[index, :self.data_dim])
-                                        self.labeling_data[index, :self.data_dim],
-                                        self.label_variances[index, :self.data_dim])
 
             for i in range(self.labels_dim):
                 labeled_map_values[*bmu_coords, i, 0].append(self.labeling_data[index, self.data_dim + i])
