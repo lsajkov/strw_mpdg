@@ -369,12 +369,12 @@ class SelfOrganizingMap:
         print(f'SOM converged at step {self.step} to error {self.error}')
         return error
 
-    def label_map(self):
+    # def label_map(self):
         
-        labeled_map_values = np.empty([*self.mapsize, self.labels_dim, 2],
-                                    dtype = object)
-        for index, _ in np.ndenumerate(labeled_map_values):
-            labeled_map_values[index] = []
+    #     labeled_map_values = np.empty([*self.mapsize, self.labels_dim, 2],
+    #                                 dtype = object)
+    #     for index, _ in np.ndenumerate(labeled_map_values):
+    #         labeled_map_values[index] = []
 
     def label_map(self):
         
