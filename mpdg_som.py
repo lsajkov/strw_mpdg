@@ -501,6 +501,8 @@ class SelfOrganizingMap:
 
         self.prediction_sigmas  = prediction_sigmas
 
+    
+
 
     def save_outputs(self,
                      directory_path,
@@ -525,7 +527,6 @@ class SelfOrganizingMap:
             map_parameters['maximum_steps']          = self.maximum_steps         
             map_parameters['error_thresh']           = self.error_thresh          
              
-            np.save(f'{directory_path}/SOM_params', map_parameters)
             np.save(f'{directory_path}/SOM_params', map_parameters)
 
     # def label_map(self,
