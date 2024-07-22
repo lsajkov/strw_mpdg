@@ -444,26 +444,30 @@ class SelfOrganizingMap:
 
         quality_map = np.full([*self.mapsize, self.labeling_data_dim - self.data_dim], np.nan)
 
-        for cell, _ in np.ndenumerate(quality_map):
+        for cell, _ in np.ndenumerate(quality_map[..., 0]):
             for i in range(self.labeling_data_dim - self.data_dim):
                 try:
-                    param_phot = np.mean(self.data[self.indexed_map[*[5, 10]], self.data_dim - 1 + i])
+                    param_phot = np.mean(self.data[self.indexed_map[*cell], self.data_dim - 1 + i])
                     param_spec = np.mean(self.labeled_map_values[*cell, i, 0])
 
                     quality_map[*cell, i] = np.abs(param_spec - param_phot)
                 except:
                     continue
 
-        # if show_map:
+        if show_map:
 
-        #     fig = plt.figure(figsize = (9.6, 8), constrained_layout = True)
-        #     ax = fig.add_subplot()
-        #     qual_mp = ax.imshow(quality_map,
-        #         origin = 'lower', cmap = cmap)
-        #     ax.axis('off')
+            fig = plt.figure(figsize = (10, 5 * (self.labeling_data_dim - self.data_dim)),
+                             constrained_layout = True)
+            
+            for i in range(self.labeling_data_dim - self.data_dim):
+                ax = fig.add_subplot(1, self.labeling_data_dim - self.data_dim, i + 1)
 
-        #     fig.colorbar(mappable = qual_mp, location = 'bottom', fraction = 1, shrink = 0.66, pad = 0.005,
-        #                  label = f'')
+                qual_mp = ax.imshow(quality_map[..., i],
+                    origin = 'lower', cmap = cmap)
+                ax.axis('off')
+
+                fig.colorbar(mappable = qual_mp, location = 'bottom', fraction = 1, shrink = 0.66, pad = 0.005,
+                            label = self.parameter_names[i])
             
         #     if save_fig:
         #         fig.savefig(f'{save_path}/SOM_quality_map')
