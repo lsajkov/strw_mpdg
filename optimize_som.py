@@ -10,25 +10,41 @@ from mpdg_som import SelfOrganizingMap
 import optuna
 
 #load in data
-data_file = '/data2/lsajkov/mpdg/data_products/GAMA/GAMA_SOM_training_catalog_08Jul24.fits'
+data_file = '/data2/lsajkov/mpdg/data_products/KiDS/KiDS_SOM_catalog_18Jul24.fits'
+label_file = '/data2/lsajkov/mpdg/data_products/GAMA/GAMA_SOM_training_catalog_17Jul24.fits'
 
 with fits.open(data_file) as cat:
     input_catalog_complete = Table(cat[1].data)
 
+with fits.open(label_file) as cat:
+    label_catalog_complete = Table(cat[1].data)
+
 #Select the needed data
-redshift_cut = input_catalog_complete['redshift'] <= 0.4
+input_redshift_cut = input_catalog_complete['redshift'] <= 0.4
+input_mag_cut      = input_catalog_complete['r_mag'] < 20.5
+input_size_cut     = input_catalog_complete['half_light_radius'] < 5
+input_total_cut    = input_redshift_cut & input_mag_cut & input_size_cut
 
-input_data = input_catalog_complete[redshift_cut]['r_mag', 'gr_col', 'ug_col', 'ri_col']
-input_stds = input_catalog_complete[redshift_cut]['r_mag_err', 'gr_col_err', 'ug_col_err', 'ri_col_err']
+label_redshift_cut = label_catalog_complete['redshift'] <= 0.4
+label_mag_cut      = label_catalog_complete['r_mag'] < 20.5
+label_size_cut     = label_catalog_complete['half_light_radius'] < 5
+label_total_cut    = label_redshift_cut & label_size_cut & label_redshift_cut
 
-input_labels     = input_catalog_complete[redshift_cut]['r_mag','gr_col', 'ug_col', 'ri_col', 'log_mstar', 'redshift']
-input_label_stds = input_catalog_complete[redshift_cut]['r_mag_err', 'gr_col_err', 'ug_col_err', 'ri_col_err']
+input_data = input_catalog_complete[input_total_cut]['r_mag', 'gr_col', 'ug_col', 'ri_col', 'half_light_radius']
+input_stds = input_catalog_complete[input_total_cut]['r_mag_err', 'gr_col_err', 'ug_col_err', 'ri_col_err']
+input_stds.add_column([0.1] * len(input_catalog_complete[input_total_cut]), name = 'half_light_radius_err')
 
-tuple_labels = input_labels.as_array()
-list_labels  = [list(values) for values in tuple_labels]
-input_labels = np.array(list_labels)
+input_labels     = label_catalog_complete[label_total_cut]['r_mag','gr_col', 'ug_col', 'ri_col', 'half_light_radius', 'mstar', 'redshift']
+input_label_stds = label_catalog_complete[label_total_cut]['r_mag_err', 'gr_col_err', 'ug_col_err', 'ri_col_err']
+input_label_stds.add_column([0.1] * len(label_catalog_complete[label_total_cut]), name = 'half_light_radius_err')
+input_label_stds.add_column([1] * len(label_catalog_complete[label_total_cut]), name = 'mstar_err_placeholder')
+input_label_stds.add_column([1e-4] * len(label_catalog_complete[label_total_cut]), name = 'redshift_err_placeholder')
 
-data_cut = 30000 #use up to this much of the data (-1 uses entire dataset)
+# tuple_labels = input_labels.as_array()
+# list_labels  = [list(values) for values in tuple_labels]
+# input_labels = np.array(list_labels)
+
+data_cut = -1 #use up to this much of the data (-1 uses entire dataset)
 
 #pick a random subset of the data, as to avoid sampling bias
 randomized_idx = np.arange(0, len(input_data))
@@ -72,30 +88,32 @@ def ObjectiveFunction(trial):
         maximum_steps          = maximum_steps,
         error_thresh           = 0.01)
     
-    SOM.load_data(input_data[randomized_data_idx],
-                  variable_names = ['r_mag', 'g-r', 'u-g', 'r-i'])
-    SOM.normalize_data()
+    SOM.load_data(input_data,#[randomized_data_idx],
+                  variable_names = ['r_mag', 'g-r', 'u-g', 'r-i', 'rad_50'])
+    SOM.data_statistics()
+    # SOM.normalize_data()
 
-    SOM.load_standard_deviations(input_stds[randomized_data_idx])
-    SOM.normalize_standard_deviations()
+    SOM.load_standard_deviations(input_stds)#[randomized_data_idx])
+    # SOM.normalize_standard_deviations()
 
     SOM.build_SOM()
 
     SOM.train()
 
-    SOM.load_labeling_data(input_labels[randomized_label_idx],
-                           parameter_names = ['log_mstar', 'redshift'])
-    SOM.normalize_labeling_data()
+    SOM.load_labeling_data(input_labels,#[randomized_label_idx],
+                           parameter_names = ['mstar', 'redshift'])
+    # SOM.normalize_labeling_data()
 
-    SOM.load_labeling_standard_deviations(input_stds[randomized_label_idx])
-    SOM.normalize_labeling_standard_deviations()
+    SOM.load_labeling_standard_deviations(input_label_stds)#[randomized_label_idx])
+    # SOM.normalize_labeling_standard_deviations()
 
-    SOM.label_map(pdr = 500)
+    SOM.label_map()
     
-    SOM.predict(SOM.labeling_data[:, :4],
-    SOM.label_variances[:, :4])
+    SOM.predict(SOM.labeling_data[:, :SOM.data_dim],
+                SOM.label_variances[:, :SOM.data_dim])
 
-    rms_error = np.sqrt(np.nansum((SOM.labeling_data[:, SOM.data_dim + 1] - SOM.prediction_results[:, 1])**2)/len(SOM.labeling_data))
+    rms_error = np.sqrt(np.nansum((np.log10(SOM.labeling_data[:, SOM.data_dim]) -\
+                                   np.log10(SOM.prediction_results[:, 0]))**2)/len(SOM.labeling_data))
     
     if np.isnan(rms_error):
         rms_error = 99
