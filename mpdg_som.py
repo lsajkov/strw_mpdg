@@ -480,7 +480,8 @@ class SelfOrganizingMap:
 
     def show_map(self, show_labeled = False,
                  cmap = 'jet_r', log_norm = [],
-                 save = False, save_path = None):
+                 save = False, save_path = None,
+                 vmin = 0, vmax = 250):
 
         if self.map_dimensionality != 2:
             raise(NotImplementedError('The module can only display 2-d maps for now.'))

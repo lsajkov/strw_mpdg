@@ -90,7 +90,6 @@ def ObjectiveFunction(trial):
     
     SOM.load_data(input_data,#[randomized_data_idx],
                   variable_names = ['r_mag', 'g-r', 'u-g', 'r-i', 'rad_50'])
-    SOM.data_statistics()
     # SOM.normalize_data()
 
     SOM.load_standard_deviations(input_stds)#[randomized_data_idx])
@@ -156,14 +155,24 @@ def save_map(study, frozen_trial):
     ft = frozen_trial
 
     save_map_path = f'/data2/lsajkov/mpdg/saved_soms/{todays_date}_{start_time}/trial{ft.number}/'
-    np.save(f'{save_map_path}/weights', SOM.weights_map)
+    np.save(f'{save_map_path}/weights', SOM.weights_map, allow_pickle = True)
+    np.save(f'{save_map_path}/prediction_results', SOM.prediction_results, allow_pickle = True)
+    np.save(f'{save_map_path}/labeling_data', SOM.labeling_data, allow_pickle = True)
 
     SOM.show_map(cmap = 'jet',
                  save = True, save_path = f'{save_map_path}/trained_SOM')
     
     SOM.show_map(show_labeled = True,
                  cmap = 'jet',
-                 save = True, save_path = f'{save_map_path}/labeled_SOM')
+                 save = True, save_path = f'{save_map_path}/labeled_SOM',
+                 log_norm = ['mstar'])
+
+    SOM.produce_occupancy_map(show_map = True, save_map = True, save_fig = True,
+                              save_path = save_map_path,
+                              vmin = 0, vmax = 250)
+    
+    SOM.produce_quality_map(show_map = True, save_map = True, save_fig = True,
+                            save_path = save_map_path)
 
 def save_plots(study, frozen_trial):
 
@@ -172,15 +181,23 @@ def save_plots(study, frozen_trial):
 
     fig = plt.figure(figsize = (26, 12))
     ax1 = fig.add_subplot(121)
-    hxb1 = ax1.hexbin(SOM.labeling_data[:, SOM.data_dim],
-                      SOM.prediction_results[:, 0],
-                      mincnt = 1, cmap = 'jet')
+    hxb1 = ax1.hexbin(np.log10(SOM.labeling_data[:, SOM.data_dim]),
+                      np.log10(SOM.prediction_results[:, 0]),
+                      mincnt = 1, cmap = 'jet',
+                      vmin = 0, vmax = 250)
     
+    MAD_mstar = np.nansum(np.abs(np.log10(SOM.labeling_data[:, SOM.data_dim ])\
+                         - np.log10(SOM.prediction_results[:, 0])))/(len(SOM.prediction_results))
+
     ax1.axline([10, 10], slope = 1, color = 'red')
 
-    ax1.set_xlim(8, 12)
-    ax1.set_ylim(8, 12)
-    ax1.set_xticks(np.arange(8, 12.5, 0.5))
+    ax1.set_xlim(7, 12)
+    ax1.set_ylim(7, 12)
+    ax1.set_xticks(np.arange(7, 13, 1))
+
+    ax1.text(0.65, 0.05,
+        f'MAD: {MAD_mstar:.3f} dex',
+        transform = ax1.transAxes)
 
     ax1.set_xlabel('GAMA log$_{10} (M_*/M_{\odot})$\nTrue')
     ax1.set_ylabel('Predicted\nSOM log$_{10} (M_*/M_{\odot})$')
@@ -193,13 +210,24 @@ def save_plots(study, frozen_trial):
 
     hxb2 = ax2.hexbin(SOM.labeling_data[:, SOM.data_dim + 1],
                       SOM.prediction_results[:, 1],
-                      mincnt = 1, cmap = 'jet')
-    
+                      mincnt = 1, cmap = 'jet',
+                      vmin = 0, vmax = 250)
+     
+    MAD_redsh = np.nansum(np.abs(np.log10(SOM.labeling_data[:, SOM.data_dim + 1])\
+                         - np.log10(SOM.prediction_results[:, 1])))/(len(SOM.prediction_results))
+       
     ax2.axline([0, 0], slope = 1, color = 'red')
 
     ax2.set_xlabel('GAMA redshift\nTrue')
     ax2.set_ylabel('Predicted\nSOM redshift')
 
+    ax2.text(0.65, 0.05,
+        f'MAD: {MAD_redsh:.3f} dex',
+        transform = ax2.transAxes)
+    
+    ax2.set_xlim(0, 0.405)
+    ax2.set_ylim(0, 0.405)
+    
     fig.colorbar(ax = ax2, mappable = hxb2,
                  location = 'top', pad = 0.01,
                  label = '$N_{\mathrm{galaxies}}$')
