@@ -30,13 +30,14 @@ label_mag_cut      = label_catalog_complete['r_mag'] < 20.5
 label_size_cut     = label_catalog_complete['half_light_radius'] < 5
 label_total_cut    = label_redshift_cut & label_size_cut & label_redshift_cut
 
-input_data = input_catalog_complete[input_total_cut]['r_mag', 'gr_col', 'ug_col', 'ri_col', 'half_light_radius']
+input_data = input_catalog_complete[input_total_cut]['r_mag', 'gr_col', 'ug_col', 'ri_col', 'redshift']
 input_stds = input_catalog_complete[input_total_cut]['r_mag_err', 'gr_col_err', 'ug_col_err', 'ri_col_err']
-input_stds.add_column([0.1] * len(input_catalog_complete[input_total_cut]), name = 'half_light_radius_err')
+input_stds.add_column([0.01] * len(input_catalog_complete[input_total_cut]), name = 'redshift_err')
 
-input_labels     = label_catalog_complete[label_total_cut]['r_mag','gr_col', 'ug_col', 'ri_col', 'half_light_radius', 'mstar', 'redshift']
+input_labels     = label_catalog_complete[label_total_cut]['r_mag','gr_col', 'ug_col', 'ri_col', 'redshift', 'mstar']
+input_labels.add_column(input_labels['redshift'], name = 'redshift_label')
 input_label_stds = label_catalog_complete[label_total_cut]['r_mag_err', 'gr_col_err', 'ug_col_err', 'ri_col_err']
-input_label_stds.add_column([0.1] * len(label_catalog_complete[label_total_cut]), name = 'half_light_radius_err')
+input_label_stds.add_column([1e-4] * len(label_catalog_complete[label_total_cut]), name = 'redshift_err')
 input_label_stds.add_column([1] * len(label_catalog_complete[label_total_cut]), name = 'mstar_err_placeholder')
 input_label_stds.add_column([1e-4] * len(label_catalog_complete[label_total_cut]), name = 'redshift_err_placeholder')
 
@@ -89,7 +90,7 @@ def ObjectiveFunction(trial):
         error_thresh           = 0.01)
     
     SOM.load_data(input_data,#[randomized_data_idx],
-                  variable_names = ['r_mag', 'g-r', 'u-g', 'r-i', 'rad_50'])
+                  variable_names = ['r_mag', 'g-r', 'u-g', 'r-i', 'redshift'])
     # SOM.normalize_data()
 
     SOM.load_standard_deviations(input_stds)#[randomized_data_idx])
@@ -126,7 +127,7 @@ todays_date = datetime.today().strftime('%d%b%y')
 start_time  = datetime.today().strftime('%Hh%Mm')
 study_name  = f'SOM_optuna_{todays_date}'
 
-n_trials = 50
+n_trials = 10
 
 log_file = f'/data2/lsajkov/mpdg/strw_mpdg/optimization_results/output_log_{todays_date}_{start_time}'
 with open(log_file, 'w') as log:
