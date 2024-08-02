@@ -15,20 +15,6 @@ import astropy.constants as const
 from astropy.cosmology import LambdaCDM
 cosmo = LambdaCDM(H0 = 70, Om0 = 0.3, Ode0 = 0.7)
 
-plt.rcParams.update({
-    'font.family'      :'serif',
-    'font.size'        : 24,
-    'font.serif'       :'Georgia',
-    'axes.labelsize'   :'large',
-    'mathtext.fontset' :'stix',
-    'axes.linewidth'   :  1.5,
-    'xtick.direction'  :'in',
-    'ytick.direction'  :'in',
-    'xtick.major.size' : 5,
-    'ytick.major.size' : 5,
-    'xtick.major.width': 1.2,
-    'ytick.major.width': 1.2,
-})
 
 import treecorr
 
@@ -140,7 +126,6 @@ c_in_pc_s      = const.c.to(u.parsec/u.s)
 constant_factor = 4 * np.pi * G_in_pc_msun_s / (c_in_pc_s**2)
 
 #lens integral
-
 lens_redshifts     = lens_n_z_array['col0']
 lens_dz            = lens_redshifts[1] - lens_redshifts[0] #the redshift bins are linear, all deltas are the same
 lens_ang_diam_dist = cosmo.angular_diameter_distance(lens_redshifts).to(u.parsec)
@@ -175,7 +160,7 @@ shear_correlation_imag = ngc.xi_im
 
 shear_correlation_covar = ngc.varxi
 
-correction_m = correction_m_array[int(srce_bin) + 1]
+correction_m = correction_m_array[int(srce_bin) - 1]
 
 excess_surf_density = shear_correlation_real/(1 + correction_m)/avg_sigma_crit
 
@@ -197,7 +182,7 @@ final_results = Table([np.round(degree_bins, 3),
                         'averageSigmaCrit[pc2 Msun-1]'])
 
 ascii.write(final_results, f'{save_results_directory}/output_lensbin{lens_bin}_srcebin{srce_bin}.dat',
-            overwrite = False)
+            overwrite = True)
 
 print(f'Final unit of excess surface density: {excess_surf_density.unit}')
 
