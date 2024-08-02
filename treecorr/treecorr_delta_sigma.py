@@ -98,7 +98,7 @@ lens_n_z_expected = np.dot(lens_n_z_array['col0'], lens_n_z_array['col1'])
 
 log10_hMpc_bin_lo = -2
 log10_hMpc_bin_hi = 1
-bins = 15
+bins = int(sys.argv[3])
 hMpc_bins = np.logspace(log10_hMpc_bin_lo, log10_hMpc_bin_hi, bins)
 
 degree_bins = hMpc_to_degree(hMpc_bins, lens_n_z_expected)
@@ -163,6 +163,7 @@ shear_correlation_covar = ngc.varxi
 correction_m = correction_m_array[int(srce_bin) - 1]
 
 excess_surf_density = shear_correlation_real/(1 + correction_m)/avg_sigma_crit
+excess_surf_density_covar = shear_correlation_covar/(1 + correction_m)/avg_sigma_crit
 
 save_results_directory = '/data2/lsajkov/mpdg/data_products/WL_excess_surf_density_results/02Aug24'
 
@@ -171,7 +172,8 @@ final_results = Table([np.round(degree_bins, 3),
                        np.round(shear_correlation_real, 6),
                        np.round(shear_correlation_imag, 6),
                        np.round(shear_correlation_covar, 6),
-                       np.round(excess_surf_density.value, 3),
+                       np.round(excess_surf_density.value, 6),  
+                       np.round(excess_surf_density_covar.value, 6),
                        np.round([avg_sigma_crit.value] * len(degree_bins), 3)],
                names = ['R[degrees]',
                         'R[h-1 Mpc]',
@@ -179,6 +181,7 @@ final_results = Table([np.round(degree_bins, 3),
                         'gamma_T_imag',
                         'gamma_T_covar',
                         'deltaSigma[h Msun pc-2]',
+                        'covar_deltaSigma[h Msun pc-2]',
                         'averageSigmaCrit[pc2 Msun-1]'])
 
 ascii.write(final_results, f'{save_results_directory}/output_lensbin{lens_bin}_srcebin{srce_bin}.dat',
