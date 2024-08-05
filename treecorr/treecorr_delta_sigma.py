@@ -13,7 +13,7 @@ from astropy.table import Table
 import astropy.units as u
 import astropy.constants as const
 from astropy.cosmology import LambdaCDM
-cosmo = LambdaCDM(H0 = 70, Om0 = 0.3, Ode0 = 0.7)
+cosmo = LambdaCDM(H0 = 100, Om0 = 0.3, Ode0 = 0.7)
 
 
 import treecorr
@@ -39,13 +39,13 @@ correction_m_array = [-0.009, -0.011, -0.015, 0.002, 0.007]
 
 def degree_to_hMpc(degree, redshift):
     radian = (degree * u.degree).to(u.radian)
-    comoving_dist_Mpc = cosmo.comoving_distance(redshift).value
-    hMpc = comoving_dist_Mpc * np.tan(radian)
+    angular_dist_Mpc = cosmo.angular_diameter_distance(redshift).value
+    hMpc = angular_dist_Mpc * radian
     return hMpc
 
 def hMpc_to_degree(hMpc, redshift):
-    comoving_dist_Mpc = cosmo.comoving_distance(redshift).value
-    radian = np.arctan(hMpc/comoving_dist_Mpc)
+    angular_dist_Mpc = cosmo.angular_diameter_distance(redshift).value
+    radian = hMpc/angular_dist_Mpc
     degree = (radian * u.radian).to(u.degree)
     return degree.value
 
@@ -165,7 +165,7 @@ correction_m = correction_m_array[int(srce_bin) - 1]
 excess_surf_density = shear_correlation_real/(1 + correction_m)/avg_sigma_crit
 excess_surf_density_covar = shear_correlation_covar/(1 + correction_m)/avg_sigma_crit
 
-save_results_directory = '/data2/lsajkov/mpdg/data_products/WL_excess_surf_density_results/02Aug24'
+save_results_directory = '/data2/lsajkov/mpdg/data_products/WL_excess_surf_density_results/05Aug24'
 
 final_results = Table([np.round(degree_bins, 3),
                        np.round(hMpc_bins, 3),
