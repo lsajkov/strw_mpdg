@@ -177,7 +177,11 @@ excess_surf_density = shear_correlation_real/(1 + correction_m)/avg_sigma_crit
 excess_surf_density_covar = shear_correlation_covar/(1 + correction_m)/avg_sigma_crit
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 save_results_directory = '/data2/lsajkov/mpdg/data_products/WL_excess_surf_density_results/09Aug24'
+=======
+save_results_directory = '/data2/lsajkov/mpdg/data_products/WL_excess_surf_density_results/05Aug24'
+>>>>>>> 0ab665c1f63e1ae5c1aa13fb369688d68ae48f77
 =======
 save_results_directory = '/data2/lsajkov/mpdg/data_products/WL_excess_surf_density_results/05Aug24'
 >>>>>>> 0ab665c1f63e1ae5c1aa13fb369688d68ae48f77
